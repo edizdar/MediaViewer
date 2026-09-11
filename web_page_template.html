@@ -1,0 +1,210 @@
+<!-- =============================================================
+  MEDIA VIEWER — BLOGGER / WEB SAYFASI ŞABLONU
+  Sayfa: https://www.eroldizdar.tr/p/mediaviewer.html
+  GitHub: https://github.com/edizdar/MediaViewer
+============================================================= -->
+
+<div id="mediaviewer-container" style="max-width: 900px; margin: 0 auto; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #1f2937; line-height: 1.6;">
+
+  <!-- Hero / Başlık Alanı -->
+  <div style="text-align: center; padding: 30px 20px; background: linear-gradient(135deg, #1e1e2e 0%, #11111b 100%); border-radius: 20px; color: #cdd6f4; box-shadow: 0 10px 30px rgba(0,0,0,0.15); margin-bottom: 30px;">
+    <div style="font-size: 48px; margin-bottom: 10px;">📷 🎬</div>
+    <h1 style="font-size: 32px; font-weight: 800; margin: 0 0 10px 0; color: #89b4fa; letter-spacing: -0.5px;">Media Viewer</h1>
+    <p style="font-size: 17px; color: #a6adc8; max-width: 650px; margin: 0 auto 24px auto;">
+      Fotoğraf ve videolarınız için hızlı, sade, dikkat dağıtmayan ve kurulum gerektirmeyen modern masaüstü medya görüntüleyici.
+    </p>
+
+    <!-- Doğrudan İndirme Butonu (GitHub Releases üzerinden) -->
+    <div style="margin: 25px 0 15px 0;">
+      <a href="https://github.com/edizdar/MediaViewer/releases/latest/download/MediaViewer.exe" 
+         style="display: inline-flex; align-items: center; gap: 12px; background: linear-gradient(135deg, #89b4fa, #3b82f6); color: #11111b; padding: 16px 36px; border-radius: 50px; font-size: 18px; font-weight: 700; text-decoration: none; box-shadow: 0 8px 20px rgba(137, 180, 250, 0.4); transition: transform 0.2s, box-shadow 0.2s;"
+         onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 12px 25px rgba(137, 180, 250, 0.5)';"
+         onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 8px 20px rgba(137, 180, 250, 0.4)';">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+          <polyline points="7 10 12 15 17 10"></polyline>
+          <line x1="12" y1="15" x2="12" y2="3"></line>
+        </svg>
+        <span>Ücretsiz İndir (MediaViewer.exe)</span>
+      </a>
+    </div>
+    
+    <div style="font-size: 13px; color: #9399b2; display: flex; justify-content: center; gap: 15px; flex-wrap: wrap;">
+      <span>✓ Windows 10 / 11 (64-bit)</span>
+      <span>✓ Taşınabilir (Kurulum Yok)</span>
+      <span>✓ ~53 MB</span>
+      <span>✓ <a href="https://github.com/edizdar/MediaViewer" target="_blank" style="color: #89b4fa; text-decoration: none;">GitHub Kaynak Kodu</a></span>
+    </div>
+  </div>
+
+  <!-- Dil Değiştirici Butonlar -->
+  <div style="display: flex; justify-content: center; gap: 10px; margin-bottom: 25px;">
+    <button onclick="document.getElementById('mv-tr').style.display='block'; document.getElementById('mv-en').style.display='none'; this.style.background='#3b82f6'; this.style.color='#fff'; document.getElementById('btn-en').style.background='#e5e7eb'; document.getElementById('btn-en').style.color='#374151';"
+            id="btn-tr" 
+            style="border: none; background: #3b82f6; color: #fff; padding: 8px 20px; border-radius: 20px; font-weight: 600; cursor: pointer; font-size: 14px; transition: all 0.2s;">
+      🇹🇷 Türkçe
+    </button>
+    <button onclick="document.getElementById('mv-tr').style.display='none'; document.getElementById('mv-en').style.display='block'; this.style.background='#3b82f6'; this.style.color='#fff'; document.getElementById('btn-tr').style.background='#e5e7eb'; document.getElementById('btn-tr').style.color='#374151';"
+            id="btn-en" 
+            style="border: none; background: #e5e7eb; color: #374151; padding: 8px 20px; border-radius: 20px; font-weight: 600; cursor: pointer; font-size: 14px; transition: all 0.2s;">
+      🇬🇧 English
+    </button>
+  </div>
+
+  <!-- ==================== TÜRKÇE BÖLÜM ==================== -->
+  <div id="mv-tr">
+    <div style="background: #ffffff; border: 1px solid #e5e7eb; border-radius: 16px; padding: 25px; margin-bottom: 25px; box-shadow: 0 4px 12px rgba(0,0,0,0.03);">
+      <h2 style="font-size: 22px; color: #111827; margin-top: 0; border-bottom: 2px solid #3b82f6; padding-bottom: 8px; display: inline-block;">Neden Media Viewer?</h2>
+      <p style="font-size: 15px; color: #4b5563;">
+        Standart Windows fotoğraf görüntüleyicisi büyük dosyaları açarken yavaşlayabilir; video oynatmak için ise ayrı bir yazılıma geçmeniz gerekir. <strong>Media Viewer</strong>, fotoğraf ve video arşivinizi tek bir akıcı, modern ve karanlık temalı pencerede birleştirir.
+      </p>
+    </div>
+
+    <!-- Özellikler Izgarası -->
+    <h3 style="font-size: 20px; color: #111827; margin: 25px 0 15px 0;">🚀 Öne Çıkan Yetenekler</h3>
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 15px; margin-bottom: 30px;">
+      
+      <div style="background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 12px; padding: 18px;">
+        <div style="font-size: 24px; margin-bottom: 8px;">🖼️ 🎬</div>
+        <strong style="color: #111827; font-size: 16px;">Hepsi Bir Arada</strong>
+        <p style="color: #6b7280; font-size: 14px; margin: 6px 0 0 0;">JPG, PNG, GIF, WebP, SVG, BMP fotoğrafları ve MP4, MOV, AVI, WebM, MKV videoları tek çatı altında oynatın.</p>
+      </div>
+
+      <div style="background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 12px; padding: 18px;">
+        <div style="font-size: 24px; margin-bottom: 8px;">🖥️</div>
+        <strong style="color: #111827; font-size: 16px;">Sıfır Dikkat Dağıtıcı</strong>
+        <p style="color: #6b7280; font-size: 14px; margin: 6px 0 0 0;">Tam ekranda ekran tertemizdir. Çıkış ve ileri/geri butonları sadece fare ilgili köşeye yaklaştığında belirir.</p>
+      </div>
+
+      <div style="background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 12px; padding: 18px;">
+        <div style="font-size: 24px; margin-bottom: 8px;">🔍</div>
+        <strong style="color: #111827; font-size: 16px;">Merkez Odaklı Zoom</strong>
+        <p style="color: #6b7280; font-size: 14px; margin: 6px 0 0 0;">Fare tekerleğiyle merkezden simetrik büyütme. Küçültüldüğünde asla sola veya köşeye kaymaz, daima ortada durur.</p>
+      </div>
+
+      <div style="background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 12px; padding: 18px;">
+        <div style="font-size: 24px; margin-bottom: 8px;">🕹️</div>
+        <strong style="color: #111827; font-size: 16px;">Videoda Zoom & Pan</strong>
+        <p style="color: #6b7280; font-size: 14px; margin: 6px 0 0 0;">Videoları oynatırken yakınlaştırın ve görünmeyen yerleri klavye yön tuşlarıyla (← → ↑ ↓) kaydırarak inceleyin.</p>
+      </div>
+
+      <div style="background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 12px; padding: 18px;">
+        <div style="font-size: 24px; margin-bottom: 8px;">🎨</div>
+        <strong style="color: #111827; font-size: 16px;">Dahili Işık / Renk Ayarları</strong>
+        <p style="color: #6b7280; font-size: 14px; margin: 6px 0 0 0;">Karanlık fotoğrafları tek tuşla (Ctrl+J) açılan Parlaklık, Kontrast ve Gamma kaydırıcıları ile anında aydınlatın.</p>
+      </div>
+
+      <div style="background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 12px; padding: 18px;">
+        <div style="font-size: 24px; margin-bottom: 8px;">📋 ⚡</div>
+        <strong style="color: #111827; font-size: 16px;">Oynatma Listesi & Taşınabilir</strong>
+        <p style="color: #6b7280; font-size: 14px; margin: 6px 0 0 0;">Özel listeler kaydedin (.mvpl). Kurulum istemez; doğrudan indirip tıklayarak çalıştırabilirsiniz.</p>
+      </div>
+
+    </div>
+
+    <!-- Kısayollar Tablosu -->
+    <h3 style="font-size: 20px; color: #111827; margin: 25px 0 15px 0;">⌨️ Kullanışlı Klavye Kısayolları</h3>
+    <div style="overflow-x: auto; margin-bottom: 30px;">
+      <table style="width: 100%; border-collapse: collapse; text-align: left; font-size: 14px;">
+        <thead>
+          <tr style="background: #f3f4f6; border-bottom: 2px solid #e5e7eb;">
+            <th style="padding: 10px 14px; color: #374151;">Kısayol</th>
+            <th style="padding: 10px 14px; color: #374151;">İşlev</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr style="border-bottom: 1px solid #e5e7eb;"><td style="padding: 10px 14px;"><strong>← / →</strong></td><td style="padding: 10px 14px;">Önceki / Sonraki Medya Dosyası</td></tr>
+          <tr style="border-bottom: 1px solid #e5e7eb; background: #fafafa;"><td style="padding: 10px 14px;"><strong>F11 / Çift Tıklama</strong></td><td style="padding: 10px 14px;">Tam Ekran Aç / Kapat</td></tr>
+          <tr style="border-bottom: 1px solid #e5e7eb;"><td style="padding: 10px 14px;"><strong>Esc</strong></td><td style="padding: 10px 14px;">Tam Ekrandan Çıkış</td></tr>
+          <tr style="border-bottom: 1px solid #e5e7eb; background: #fafafa;"><td style="padding: 10px 14px;"><strong>Boşluk (Space)</strong></td><td style="padding: 10px 14px;">Video: Oynat/Duraklat • Fotoğraf: Sonraki</td></tr>
+          <tr style="border-bottom: 1px solid #e5e7eb;"><td style="padding: 10px 14px;"><strong>Ctrl + J</strong></td><td style="padding: 10px 14px;">Renk & Parlaklık Ayarları Panelini Aç/Kapat</td></tr>
+          <tr style="border-bottom: 1px solid #e5e7eb; background: #fafafa;"><td style="padding: 10px 14px;"><strong>Ctrl + L</strong></td><td style="padding: 10px 14px;">Oynatma Listesi Panelini Aç/Kapat</td></tr>
+          <tr style="border-bottom: 1px solid #e5e7eb;"><td style="padding: 10px 14px;"><strong>R / Shift + R</strong></td><td style="padding: 10px 14px;">Sağa / Sola 90° Döndür</td></tr>
+          <tr style="border-bottom: 1px solid #e5e7eb; background: #fafafa;"><td style="padding: 10px 14px;"><strong>Delete</strong></td><td style="padding: 10px 14px;">Dosyayı Çöp Kutusuna Gönder</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ==================== ENGLISH SECTION ==================== -->
+  <div id="mv-en" style="display: none;">
+    <div style="background: #ffffff; border: 1px solid #e5e7eb; border-radius: 16px; padding: 25px; margin-bottom: 25px; box-shadow: 0 4px 12px rgba(0,0,0,0.03);">
+      <h2 style="font-size: 22px; color: #111827; margin-top: 0; border-bottom: 2px solid #3b82f6; padding-bottom: 8px; display: inline-block;">Why Media Viewer?</h2>
+      <p style="font-size: 15px; color: #4b5563;">
+        Tired of slow default media viewers and juggling separate apps for photos and videos? <strong>Media Viewer</strong> unifies your entire photo and video library in a clean, modern, dark-themed, and hardware-accelerated desktop player.
+      </p>
+    </div>
+
+    <!-- Features Grid -->
+    <h3 style="font-size: 20px; color: #111827; margin: 25px 0 15px 0;">🚀 Key Highlights</h3>
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 15px; margin-bottom: 30px;">
+      
+      <div style="background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 12px; padding: 18px;">
+        <div style="font-size: 24px; margin-bottom: 8px;">🖼️ 🎬</div>
+        <strong style="color: #111827; font-size: 16px;">All-in-One Media Hub</strong>
+        <p style="color: #6b7280; font-size: 14px; margin: 6px 0 0 0;">Preview JPG, PNG, GIF, WebP, SVG, BMP photos and play MP4, MOV, AVI, WebM, MKV videos seamlessly.</p>
+      </div>
+
+      <div style="background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 12px; padding: 18px;">
+        <div style="font-size: 24px; margin-bottom: 8px;">🖥️</div>
+        <strong style="color: #111827; font-size: 16px;">Zero-Distraction Fullscreen</strong>
+        <p style="color: #6b7280; font-size: 14px; margin: 6px 0 0 0;">100% clean view. Exit and navigation arrows only appear when hovering near corner or edges.</p>
+      </div>
+
+      <div style="background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 12px; padding: 18px;">
+        <div style="font-size: 24px; margin-bottom: 8px;">🔍</div>
+        <strong style="color: #111827; font-size: 16px;">Center-Focused Zoom</strong>
+        <p style="color: #6b7280; font-size: 14px; margin: 6px 0 0 0;">Symmetrical zooming from the screen center. Shrinking snaps media right back to the center.</p>
+      </div>
+
+      <div style="background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 12px; padding: 18px;">
+        <div style="font-size: 24px; margin-bottom: 8px;">🕹️</div>
+        <strong style="color: #111827; font-size: 16px;">Video Zoom & Keyboard Pan</strong>
+        <p style="color: #6b7280; font-size: 14px; margin: 6px 0 0 0;">Zoom into playing videos with mouse wheel and pan across hidden areas using arrow keys (← → ↑ ↓).</p>
+      </div>
+
+      <div style="background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 12px; padding: 18px;">
+        <div style="font-size: 24px; margin-bottom: 8px;">🎨</div>
+        <strong style="color: #111827; font-size: 16px;">Real-Time Color Adjustments</strong>
+        <p style="color: #6b7280; font-size: 14px; margin: 6px 0 0 0;">Fix underexposed photos instantly with built-in Brightness, Contrast, and Gamma sliders (Ctrl+J).</p>
+      </div>
+
+      <div style="background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 12px; padding: 18px;">
+        <div style="font-size: 24px; margin-bottom: 8px;">📋 ⚡</div>
+        <strong style="color: #111827; font-size: 16px;">Custom Playlists & Portable</strong>
+        <p style="color: #6b7280; font-size: 14px; margin: 6px 0 0 0;">Create & save (.mvpl) playlists. No setup wizard or registry clutter—just run the standalone .exe.</p>
+      </div>
+
+    </div>
+
+    <!-- Shortcuts Table -->
+    <h3 style="font-size: 20px; color: #111827; margin: 25px 0 15px 0;">⌨️ Keyboard Shortcuts</h3>
+    <div style="overflow-x: auto; margin-bottom: 30px;">
+      <table style="width: 100%; border-collapse: collapse; text-align: left; font-size: 14px;">
+        <thead>
+          <tr style="background: #f3f4f6; border-bottom: 2px solid #e5e7eb;">
+            <th style="padding: 10px 14px; color: #374151;">Shortcut</th>
+            <th style="padding: 10px 14px; color: #374151;">Action</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr style="border-bottom: 1px solid #e5e7eb;"><td style="padding: 10px 14px;"><strong>← / →</strong></td><td style="padding: 10px 14px;">Previous / Next Media</td></tr>
+          <tr style="border-bottom: 1px solid #e5e7eb; background: #fafafa;"><td style="padding: 10px 14px;"><strong>F11 / Double-Click</strong></td><td style="padding: 10px 14px;">Toggle Fullscreen</td></tr>
+          <tr style="border-bottom: 1px solid #e5e7eb;"><td style="padding: 10px 14px;"><strong>Esc</strong></td><td style="padding: 10px 14px;">Exit Fullscreen</td></tr>
+          <tr style="border-bottom: 1px solid #e5e7eb; background: #fafafa;"><td style="padding: 10px 14px;"><strong>Space</strong></td><td style="padding: 10px 14px;">Video: Play/Pause • Photos: Next</td></tr>
+          <tr style="border-bottom: 1px solid #e5e7eb;"><td style="padding: 10px 14px;"><strong>Ctrl + J</strong></td><td style="padding: 10px 14px;">Toggle Color Adjustments Panel</td></tr>
+          <tr style="border-bottom: 1px solid #e5e7eb; background: #fafafa;"><td style="padding: 10px 14px;"><strong>Ctrl + L</strong></td><td style="padding: 10px 14px;">Toggle Playlist Panel</td></tr>
+          <tr style="border-bottom: 1px solid #e5e7eb;"><td style="padding: 10px 14px;"><strong>R / Shift + R</strong></td><td style="padding: 10px 14px;">Rotate 90° Clockwise / CCW</td></tr>
+          <tr style="border-bottom: 1px solid #e5e7eb; background: #fafafa;"><td style="padding: 10px 14px;"><strong>Delete</strong></td><td style="padding: 10px 14px;">Move File to Recycle Bin</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Alt Bilgi / Footer -->
+  <div style="text-align: center; padding-top: 20px; border-top: 1px solid #e5e7eb; color: #9ca3af; font-size: 13px;">
+    Geliştirici: <a href="https://www.eroldizdar.tr" target="_blank" style="color: #3b82f6; text-decoration: none; font-weight: 600;">Erol Dizdar</a> 
+    • Açık Kaynak: <a href="https://github.com/edizdar/MediaViewer" target="_blank" style="color: #3b82f6; text-decoration: none; font-weight: 600;">GitHub Repository</a>
+  </div>
+
+</div>
