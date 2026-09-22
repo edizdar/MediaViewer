@@ -265,6 +265,18 @@ class MainWindow(QMainWindow):
                 self._toggle_fullscreen()
                 return True
 
+            if in_video:
+                text = event.text()
+                if text == "[" or key == Qt.Key.Key_BracketLeft or text == "<":
+                    self._video_player.decrease_speed()
+                    return True
+                elif text == "]" or key == Qt.Key.Key_BracketRight or text == ">":
+                    self._video_player.increase_speed()
+                    return True
+                elif text == "\\" or key in (Qt.Key.Key_Backslash, Qt.Key.Key_Backspace):
+                    self._video_player.reset_speed()
+                    return True
+
         return super().eventFilter(watched, event)
 
     # ── Fullscreen Hover Detection (Only reveals when mouse is in zone) ──

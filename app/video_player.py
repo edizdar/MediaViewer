@@ -2,7 +2,7 @@
 
 from pathlib import Path
 
-from PySide6.QtCore import Qt, Signal, QUrl, Slot, QSizeF
+from PySide6.QtCore import Qt, Signal, QUrl, Slot, QSizeF, QPoint, QEvent
 from PySide6.QtGui import QMouseEvent, QWheelEvent, QPainter
 from PySide6.QtMultimedia import QMediaPlayer, QAudioOutput
 from PySide6.QtMultimediaWidgets import QGraphicsVideoItem
@@ -16,6 +16,7 @@ from PySide6.QtWidgets import (
     QSizePolicy,
     QGraphicsView,
     QGraphicsScene,
+    QMenu,
 )
 
 
@@ -184,6 +185,9 @@ class VideoPlayer(QWidget):
     playback_started = Signal()
     playback_stopped = Signal()
     playback_error = Signal(str)  # Emitted when a codec/playback error occurs
+    speed_changed = Signal(float)  # Emitted when playback speed changes
+
+    SPEED_PRESETS = [0.25, 0.5, 0.75, 1.0, 1.25, 1.5, 1.75, 2.0]
 
     def __init__(self, parent=None) -> None:
         super().__init__(parent)
@@ -200,6 +204,7 @@ class VideoPlayer(QWidget):
         self._player.setVideoOutput(self._video_view.video_item)
 
         self._is_seeking = False
+        self._playback_rate: float = 1.0
 
         self._setup_ui()
         self._connect_signals()
@@ -283,6 +288,16 @@ class VideoPlayer(QWidget):
 
         bottom_row.addStretch()
 
+        # Playback speed button
+        self._speed_btn = QPushButton("1.0x")
+        self._speed_btn.setObjectName("speedBtn")
+        self._speed_btn.setToolTip("Oynatma Hızı: 1.0x ([ / ] kısayolları veya tekerlek ile değiştir)")
+        self._speed_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        self._speed_btn.setFixedSize(54, 30)
+        self._speed_btn.clicked.connect(self._show_speed_menu)
+        self._speed_btn.installEventFilter(self)
+        bottom_row.addWidget(self._speed_btn)
+
         # Reset zoom button (visible when zoomed)
         self._reset_zoom_btn = QPushButton("1:1")
         self._reset_zoom_btn.setObjectName("iconButton")
@@ -326,6 +341,78 @@ class VideoPlayer(QWidget):
         self._player.errorOccurred.connect(self._on_player_error)
         self._player.mediaStatusChanged.connect(self._on_media_status_changed)
 
+    # ── Playback Speed API ──────────────────────────────────────────────
+
+    @property
+    def playback_rate(self) -> float:
+        return self._playback_rate
+
+    @staticmethod
+    def _format_speed(rate: float) -> str:
+        if rate == int(rate):
+            return f"{rate:.1f}x"
+        s = f"{rate:.2f}".rstrip("0").rstrip(".")
+        if "." not in s:
+            return f"{s}.0x"
+        return f"{s}x"
+
+    def set_playback_rate(self, rate: float) -> None:
+        rate = round(max(0.25, min(rate, 2.0)), 2)
+        self._playback_rate = rate
+        self._player.setPlaybackRate(rate)
+        formatted = self._format_speed(rate)
+        self._speed_btn.setText(formatted)
+        self._speed_btn.setToolTip(f"Oynatma Hızı: {formatted} ([ / ] kısayolları veya tekerlek ile değiştir)")
+        is_custom = abs(rate - 1.0) > 0.01
+        self._speed_btn.setProperty("active", "true" if is_custom else "false")
+        self._speed_btn.style().unpolish(self._speed_btn)
+        self._speed_btn.style().polish(self._speed_btn)
+        self.speed_changed.emit(rate)
+
+    def increase_speed(self) -> None:
+        current = self._playback_rate
+        for s in self.SPEED_PRESETS:
+            if s > current + 0.01:
+                self.set_playback_rate(s)
+                return
+
+    def decrease_speed(self) -> None:
+        current = self._playback_rate
+        for s in reversed(self.SPEED_PRESETS):
+            if s < current - 0.01:
+                self.set_playback_rate(s)
+                return
+
+    def reset_speed(self) -> None:
+        self.set_playback_rate(1.0)
+
+    def _show_speed_menu(self) -> None:
+        menu = QMenu(self)
+        for s in self.SPEED_PRESETS:
+            label = self._format_speed(s)
+            if abs(s - 1.0) < 0.01:
+                label += " (Normal)"
+            action = menu.addAction(label)
+            action.setCheckable(True)
+            if abs(s - self._playback_rate) < 0.01:
+                action.setChecked(True)
+            action.triggered.connect(lambda checked=False, rate=s: self.set_playback_rate(rate))
+
+        btn_pos = self._speed_btn.mapToGlobal(QPoint(0, 0))
+        menu_height = menu.sizeHint().height()
+        menu.exec(QPoint(btn_pos.x(), btn_pos.y() - menu_height - 4))
+
+    def eventFilter(self, watched, event) -> bool:
+        if watched == self._speed_btn and event.type() == QEvent.Type.Wheel:
+            delta = event.angleDelta().y()
+            if delta > 0:
+                self.increase_speed()
+                return True
+            elif delta < 0:
+                self.decrease_speed()
+                return True
+        return super().eventFilter(watched, event)
+
     # ── Playback API ────────────────────────────────────────────────────
 
     def load_video(self, path: str | Path) -> None:
@@ -334,6 +421,7 @@ class VideoPlayer(QWidget):
         self._player.setSource(url)
         self._play_btn.setText("▶")
         self._time_label.setText("00:00 / 00:00")
+        self.set_playback_rate(1.0)
         self._video_view.fit_video()
         self._player.play()
 

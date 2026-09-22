@@ -94,6 +94,34 @@ QPushButton#iconButton:pressed {{
     background-color: {COLORS["surface1"]};
 }}
 
+QPushButton#speedBtn {{
+    background-color: {COLORS["surface0"]};
+    color: {COLORS["text"]};
+    border: 1px solid {COLORS["surface1"]};
+    border-radius: 6px;
+    font-weight: bold;
+    font-size: 12px;
+    padding: 2px 6px;
+}}
+
+QPushButton#speedBtn:hover {{
+    background-color: {COLORS["surface1"]};
+    border-color: {COLORS["blue"]};
+    color: {COLORS["blue"]};
+}}
+
+QPushButton#speedBtn[active="true"] {{
+    background-color: {COLORS["blue"]};
+    color: {COLORS["crust"]};
+    border-color: {COLORS["blue"]};
+    font-weight: bold;
+}}
+
+QPushButton#speedBtn[active="true"]:hover {{
+    background-color: {COLORS["lavender"]};
+    border-color: {COLORS["lavender"]};
+}}
+
 /* ===== Fullscreen Overlay Buttons ===== */
 QPushButton#fsExitBtn {{
     background-color: rgba(24, 24, 37, 0.88);
@@ -240,5 +268,24 @@ QToolTip {{
     border-radius: 4px;
     padding: 4px 8px;
     font-size: 12px;
+}}
+
+/* ===== Menus ===== */
+QMenu {{
+    background-color: {COLORS["mantle"]};
+    color: {COLORS["text"]};
+    border: 1px solid {COLORS["surface1"]};
+    border-radius: 6px;
+    padding: 4px;
+}}
+
+QMenu::item {{
+    padding: 6px 24px 6px 20px;
+    border-radius: 4px;
+}}
+
+QMenu::item:selected {{
+    background-color: {COLORS["surface0"]};
+    color: {COLORS["blue"]};
 }}
 """
