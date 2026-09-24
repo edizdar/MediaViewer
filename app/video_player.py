@@ -2,7 +2,7 @@
 
 from pathlib import Path
 
-from PySide6.QtCore import Qt, Signal, QUrl, Slot, QSizeF, QPoint, QEvent
+from PySide6.QtCore import Qt, Signal, QUrl, Slot, QSizeF, QPoint, QEvent, QTimer
 from PySide6.QtGui import QMouseEvent, QWheelEvent, QPainter
 from PySide6.QtMultimedia import QMediaPlayer, QAudioOutput, QVideoFrame
 from PySide6.QtMultimediaWidgets import QGraphicsVideoItem
@@ -215,6 +215,7 @@ class VideoPlayer(QWidget):
         self._audio_output = QAudioOutput(self)
         self._player.setAudioOutput(self._audio_output)
         self._audio_output.setVolume(0.7)
+        self._audio_attached: bool = True
 
         # Zoomable video display
         self._video_view = ZoomableVideoView()
@@ -359,6 +360,20 @@ class VideoPlayer(QWidget):
         self._player.errorOccurred.connect(self._on_player_error)
         self._player.mediaStatusChanged.connect(self._on_media_status_changed)
 
+        self._video_view.video_item.videoSink().videoFrameChanged.connect(
+            self._on_first_video_frame
+        )
+
+    def _attach_audio(self) -> None:
+        """Ensure audio output is attached and enabled."""
+        if not self._audio_attached:
+            self._audio_attached = True
+            self._player.setAudioOutput(self._audio_output)
+
+    def _on_first_video_frame(self, frame: QVideoFrame) -> None:
+        if frame.isValid():
+            self._attach_audio()
+
     # ── Playback Speed API ──────────────────────────────────────────────
 
     @property
@@ -435,6 +450,11 @@ class VideoPlayer(QWidget):
 
     def load_video(self, path: str | Path) -> None:
         self._player.stop()
+        # Temporarily detach audio output so that FFmpeg doesn't drop the initial video
+        # frame due to A/V clock synchronization on low-framerate/still-photo MP4s (e.g. WhatsApp status).
+        self._player.setAudioOutput(None)
+        self._audio_attached = False
+
         url = QUrl.fromLocalFile(str(Path(path).resolve()))
         self._player.setSource(url)
         self._play_btn.setText("▶")
@@ -443,7 +463,11 @@ class VideoPlayer(QWidget):
         self._video_view.fit_video()
         self._player.play()
 
+        # Fallback: connect audio after 600ms if no video frame arrives (e.g. audio-only files)
+        QTimer.singleShot(600, self._attach_audio)
+
     def play_pause(self) -> None:
+        self._attach_audio()
         state = self._player.playbackState()
         if state == QMediaPlayer.PlaybackState.PlayingState:
             self._player.pause()
@@ -451,6 +475,7 @@ class VideoPlayer(QWidget):
             self._player.play()
 
     def play(self) -> None:
+        self._attach_audio()
         self._player.play()
 
     def pause(self) -> None:
@@ -519,6 +544,8 @@ class VideoPlayer(QWidget):
         ):
             if not self._video_view.is_zoomed:
                 self._video_view.fit_video()
+            if not self._player.hasVideo():
+                self._attach_audio()
 
     def _on_seek_start(self) -> None:
         self._is_seeking = True
