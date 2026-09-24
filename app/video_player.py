@@ -4,7 +4,7 @@ from pathlib import Path
 
 from PySide6.QtCore import Qt, Signal, QUrl, Slot, QSizeF, QPoint, QEvent
 from PySide6.QtGui import QMouseEvent, QWheelEvent, QPainter
-from PySide6.QtMultimedia import QMediaPlayer, QAudioOutput
+from PySide6.QtMultimedia import QMediaPlayer, QAudioOutput, QVideoFrame
 from PySide6.QtMultimediaWidgets import QGraphicsVideoItem
 from PySide6.QtWidgets import (
     QWidget,
@@ -61,8 +61,9 @@ class ZoomableVideoView(QGraphicsView):
         self.setMouseTracking(True)
         self.viewport().setMouseTracking(True)
 
-        # Fit video when its native size becomes known
+        # Fit video when its native size becomes known or when first frame arrives
         self._video_item.nativeSizeChanged.connect(self._on_native_size_changed)
+        self._video_item.videoSink().videoFrameChanged.connect(self._on_video_frame_changed)
 
     @property
     def video_item(self) -> QGraphicsVideoItem:
@@ -110,6 +111,23 @@ class ZoomableVideoView(QGraphicsView):
             self._scene.setSceneRect(0, 0, size.width(), size.height())
             self.fitInView(self._video_item, Qt.AspectRatioMode.KeepAspectRatio)
             self.centerOn(self._video_item)
+
+    def _on_video_frame_changed(self, frame: QVideoFrame) -> None:
+        if frame.isValid():
+            size = frame.size()
+            if size.width() > 0 and size.height() > 0:
+                cur = self._video_item.size()
+                if (
+                    cur.width() <= 0
+                    or cur.height() <= 0
+                    or cur == QSizeF(320, 240)
+                    or self._scene.sceneRect().isEmpty()
+                ):
+                    fsize = QSizeF(size.width(), size.height())
+                    self._video_item.setSize(fsize)
+                    self._scene.setSceneRect(0, 0, fsize.width(), fsize.height())
+                    self.fitInView(self._video_item, Qt.AspectRatioMode.KeepAspectRatio)
+                    self.centerOn(self._video_item)
 
     def wheelEvent(self, event: QWheelEvent) -> None:
         delta = event.angleDelta().y()

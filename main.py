@@ -5,8 +5,14 @@ Usage:
     python main.py <file>       # Open a specific file on launch
 """
 
+import os
 import sys
 from pathlib import Path
+
+# On Windows, prefer Windows Media Foundation backend (WMF) by default
+# to avoid FFmpeg A/V sync frame dropping on low-framerate/still-image videos
+if sys.platform == "win32" and "QT_MEDIA_BACKEND" not in os.environ:
+    os.environ["QT_MEDIA_BACKEND"] = "windows"
 
 from PySide6.QtWidgets import QApplication
 from PySide6.QtCore import Qt
