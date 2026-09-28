@@ -187,6 +187,7 @@ class MainWindow(QMainWindow):
         self._adjustments_panel.adjustments_changed.connect(
             self._on_adjustments_changed
         )
+        self._adjustments_panel.save_clicked.connect(self._save_adjusted_image)
 
         # Playlist panel
         self._playlist_panel.file_selected.connect(
@@ -200,6 +201,7 @@ class MainWindow(QMainWindow):
         """Register keyboard shortcuts."""
         shortcuts = {
             "Ctrl+O": self.open_file_dialog,
+            "Ctrl+S": self._save_adjusted_image,
             "Ctrl++": self._image_viewer.zoom_in,
             "Ctrl+=": self._image_viewer.zoom_in,
             "Ctrl+-": self._image_viewer.zoom_out,
@@ -435,6 +437,7 @@ class MainWindow(QMainWindow):
 
         self._stack.setCurrentIndex(1)
         self._bottom_toolbar.show_image_controls()
+        self._adjustments_panel.set_save_visible(True)
         self.setWindowTitle(f"{path.name} — Media Viewer")
 
         if self._adjustments_panel.has_adjustments():
@@ -444,6 +447,7 @@ class MainWindow(QMainWindow):
         self._video_player.load_video(path)
         self._stack.setCurrentIndex(2)
         self._bottom_toolbar.show_video_controls()
+        self._adjustments_panel.set_save_visible(False)
         self._current_image_size = None
         self._bottom_toolbar.set_file_info(self._file_manager.get_file_size_str(path))
         self.setWindowTitle(f"{path.name} — Media Viewer")
@@ -591,6 +595,46 @@ class MainWindow(QMainWindow):
             self._image_viewer.apply_adjustments(brightness, contrast, gamma)
         elif self._stack.currentIndex() == 2:
             self._video_player.apply_adjustments(brightness, contrast, gamma)
+
+    def _save_adjusted_image(self) -> None:
+        """Save the color-adjusted photo to disk."""
+        if self._stack.currentIndex() != 1:
+            return
+
+        current = self._file_manager.current_file
+        if current is None or not self._file_manager.is_image(current):
+            return
+
+        img = self._image_viewer.get_current_image()
+        if img is None:
+            return
+
+        default_name = f"{current.stem}_adjusted{current.suffix}"
+        default_path = str(current.parent / default_name)
+
+        save_path, _ = QFileDialog.getSaveFileName(
+            self,
+            "Ayarlanmış Fotoğrafı Kaydet",
+            default_path,
+            f"Fotoğraf (*{current.suffix});;Tüm Dosyalar (*)",
+        )
+        if save_path:
+            success = img.save(save_path)
+            if success:
+                QMessageBox.information(
+                    self,
+                    "Kaydedildi",
+                    f"Fotoğraf başarıyla kaydedildi:\n{Path(save_path).name}",
+                )
+                # Rescan directory to pick up the new file
+                self._file_manager.load_from_file(Path(save_path))
+                self._update_toolbar_info()
+            else:
+                QMessageBox.warning(
+                    self,
+                    "Hata",
+                    "Fotoğraf kaydedilemedi!",
+                )
 
     # ── Delete ──────────────────────────────────────────────────────────
 

@@ -86,6 +86,7 @@ class AdjustmentsPanel(QWidget):
     """
 
     adjustments_changed = Signal(int, int, float)  # brightness, contrast, gamma
+    save_clicked = Signal()
 
     def __init__(self, parent=None) -> None:
         super().__init__(parent)
@@ -139,12 +140,21 @@ class AdjustmentsPanel(QWidget):
 
         layout.addStretch()
 
-        # ── Reset button ──
+        # ── Buttons row: Reset & Save ──
+        btn_row = QHBoxLayout()
         reset_btn = QPushButton("↺  Sıfırla")
         reset_btn.setToolTip("Tüm renk ayarlarını varsayılana döndür")
         reset_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         reset_btn.clicked.connect(self.reset)
-        layout.addWidget(reset_btn)
+        btn_row.addWidget(reset_btn)
+
+        self._save_btn = QPushButton("💾  Kaydet")
+        self._save_btn.setObjectName("accentButton")
+        self._save_btn.setToolTip("Ayarlanmış fotoğrafı kaydet")
+        self._save_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        self._save_btn.clicked.connect(self.save_clicked.emit)
+        btn_row.addWidget(self._save_btn)
+        layout.addLayout(btn_row)
 
         # Responsive live update timer (25ms) — smooth real-time preview
         self._timer = QTimer(self)
@@ -158,6 +168,10 @@ class AdjustmentsPanel(QWidget):
         self._gamma.slider_released.connect(self._emit_changes)
 
     # ── Public API ──────────────────────────────────────────────────────
+
+    def set_save_visible(self, visible: bool) -> None:
+        """Show or hide the Save button (e.g. visible for images, hidden for videos)."""
+        self._save_btn.setVisible(visible)
 
     def reset(self) -> None:
         """Reset all sliders to their defaults cleanly."""

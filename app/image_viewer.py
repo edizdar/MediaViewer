@@ -61,6 +61,7 @@ class ImageViewer(QGraphicsView):
         self.setFrameShape(QGraphicsView.Shape.NoFrame)
         self.setBackgroundBrush(Qt.GlobalColor.transparent)
         self.viewport().setCursor(Qt.CursorShape.ArrowCursor)
+        self.setViewportUpdateMode(QGraphicsView.ViewportUpdateMode.FullViewportUpdate)
         self.setMouseTracking(True)
         self.viewport().setMouseTracking(True)
 
@@ -290,6 +291,12 @@ class ImageViewer(QGraphicsView):
         """Return the current zoom factor."""
         return self._zoom_factor
 
+    def get_current_image(self) -> Optional[QImage]:
+        """Return the current displayed QImage (including any applied color adjustments)."""
+        if self._pixmap_item is not None:
+            return self._pixmap_item.pixmap().toImage()
+        return None
+
     def apply_adjustments(self, brightness: int, contrast: int, gamma: float) -> None:
         """Apply brightness/contrast/gamma adjustments using a fast NumPy LUT.
 
@@ -304,6 +311,8 @@ class ImageViewer(QGraphicsView):
         # Fast path — no adjustments
         if brightness == 0 and contrast == 0 and abs(gamma - 1.0) < 0.01:
             self._pixmap_item.setPixmap(QPixmap.fromImage(self._original_image))
+            self._pixmap_item.update()
+            self.viewport().update()
             return
 
         # ── Build 256-entry LUT via NumPy ──
@@ -342,4 +351,6 @@ class ImageViewer(QGraphicsView):
         ).copy()
 
         self._pixmap_item.setPixmap(QPixmap.fromImage(adjusted))
+        self._pixmap_item.update()
+        self.viewport().update()
 

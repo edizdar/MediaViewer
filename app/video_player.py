@@ -61,37 +61,47 @@ class VideoAdjustmentOverlay(QGraphicsItem):
 
         painter.save()
 
-        # ── 1. Brightness ──
+        # ── 1. Brightness (Exposure Gain / Attenuation) ──
         if self._brightness > 0:
-            alpha = int((self._brightness / 100.0) * 190)
-            painter.fillRect(rect, QColor(255, 255, 255, alpha))
+            # ColorDodge multiplies shadow and midtone luminance proportionally,
+            # acting like camera exposure gain without adding a milky gray fog.
+            val = int((self._brightness / 100.0) * 165)
+            painter.setCompositionMode(QPainter.CompositionMode.CompositionMode_ColorDodge)
+            painter.fillRect(rect, QColor(val, val, val))
         elif self._brightness < 0:
-            alpha = int((-self._brightness / 100.0) * 220)
-            painter.fillRect(rect, QColor(0, 0, 0, alpha))
+            # Multiply dims all levels linearly and cleanly without black fog.
+            factor = 1.0 - (-self._brightness / 100.0) * 0.85
+            val = max(10, min(255, int(255 * factor)))
+            painter.setCompositionMode(QPainter.CompositionMode.CompositionMode_Multiply)
+            painter.fillRect(rect, QColor(val, val, val))
 
         # ── 2. Contrast ──
         if self._contrast < 0:
-            alpha = int((-self._contrast / 100.0) * 180)
+            # Lower contrast by blending towards neutral 50% gray
+            alpha = int((-self._contrast / 100.0) * 160)
+            painter.setCompositionMode(QPainter.CompositionMode.CompositionMode_SourceOver)
             painter.fillRect(rect, QColor(128, 128, 128, alpha))
         elif self._contrast > 0:
-            alpha = int((self._contrast / 100.0) * 170)
+            # Expand dynamic range: deepen shadows via Multiply, expand highlights via ColorDodge
+            val_mult = 255 - int((self._contrast / 100.0) * 50)
+            painter.setCompositionMode(QPainter.CompositionMode.CompositionMode_Multiply)
+            painter.fillRect(rect, QColor(val_mult, val_mult, val_mult))
+            val_dodge = int((self._contrast / 100.0) * 65)
+            painter.setCompositionMode(QPainter.CompositionMode.CompositionMode_ColorDodge)
+            painter.fillRect(rect, QColor(val_dodge, val_dodge, val_dodge))
+
+        # ── 3. Gamma (Midtone Shadow Curve) ──
+        if self._gamma > 1.01:
+            # Gamma boost: SoftLight with white lifts dark shadows and midtones cleanly,
+            # revealing details in dark scenes without blowing out highlights.
+            alpha = int(min((self._gamma - 1.0) / 2.0, 1.0) * 220)
+            painter.setCompositionMode(QPainter.CompositionMode.CompositionMode_SoftLight)
+            painter.fillRect(rect, QColor(255, 255, 255, alpha))
+        elif self._gamma < 0.99:
+            # Gamma reduction: SoftLight with black pulls down midtones smoothly.
+            alpha = int(min((1.0 - self._gamma) / 0.9, 1.0) * 220)
             painter.setCompositionMode(QPainter.CompositionMode.CompositionMode_SoftLight)
             painter.fillRect(rect, QColor(0, 0, 0, alpha))
-            painter.setCompositionMode(QPainter.CompositionMode.CompositionMode_SourceOver)
-
-        # ── 3. Gamma ──
-        if self._gamma > 1.01:
-            factor = min((self._gamma - 1.0) / 2.0, 1.0)
-            alpha = int(factor * 120)
-            painter.setCompositionMode(QPainter.CompositionMode.CompositionMode_Screen)
-            painter.fillRect(rect, QColor(200, 200, 200, alpha))
-            painter.setCompositionMode(QPainter.CompositionMode.CompositionMode_SourceOver)
-        elif self._gamma < 0.99:
-            factor = min((1.0 - self._gamma) / 0.9, 1.0)
-            alpha = int(factor * 130)
-            painter.setCompositionMode(QPainter.CompositionMode.CompositionMode_Multiply)
-            painter.fillRect(rect, QColor(100, 100, 100, alpha))
-            painter.setCompositionMode(QPainter.CompositionMode.CompositionMode_SourceOver)
 
         painter.restore()
 
@@ -138,6 +148,7 @@ class ZoomableVideoView(QGraphicsView):
         self.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
         self.setBackgroundBrush(Qt.GlobalColor.black)
         self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
+        self.setViewportUpdateMode(QGraphicsView.ViewportUpdateMode.FullViewportUpdate)
         self.setMouseTracking(True)
         self.viewport().setMouseTracking(True)
 
