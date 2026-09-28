@@ -2,8 +2,8 @@
 
 from pathlib import Path
 
-from PySide6.QtCore import Qt, Signal, QUrl, Slot, QSizeF, QPoint, QEvent, QTimer
-from PySide6.QtGui import QMouseEvent, QWheelEvent, QPainter
+from PySide6.QtCore import Qt, Signal, QUrl, Slot, QSizeF, QPoint, QEvent, QTimer, QRectF
+from PySide6.QtGui import QMouseEvent, QWheelEvent, QPainter, QColor
 from PySide6.QtMultimedia import QMediaPlayer, QAudioOutput, QVideoFrame
 from PySide6.QtMultimediaWidgets import QGraphicsVideoItem
 from PySide6.QtWidgets import (
@@ -16,8 +16,85 @@ from PySide6.QtWidgets import (
     QSizePolicy,
     QGraphicsView,
     QGraphicsScene,
+    QGraphicsItem,
     QMenu,
 )
+
+
+class VideoAdjustmentOverlay(QGraphicsItem):
+    """Overlay item that renders real-time brightness, contrast, and gamma adjustments
+    over the video in ZoomableVideoView.
+    """
+
+    def __init__(self, target_item: QGraphicsVideoItem, parent=None) -> None:
+        super().__init__(parent)
+        self._target = target_item
+        self.setZValue(50)  # Render on top of video item
+        self._brightness: int = 0
+        self._contrast: int = 0
+        self._gamma: float = 1.0
+
+    def boundingRect(self) -> QRectF:
+        return self._target.boundingRect()
+
+    def set_adjustments(self, brightness: int, contrast: int, gamma: float) -> None:
+        if (
+            self._brightness == brightness
+            and self._contrast == contrast
+            and abs(self._gamma - gamma) < 0.005
+        ):
+            return
+        self.prepareGeometryChange()
+        self._brightness = brightness
+        self._contrast = contrast
+        self._gamma = gamma
+        self.update()
+
+    def paint(self, painter: QPainter, option, widget=None) -> None:
+        rect = self.boundingRect()
+        if rect.isEmpty():
+            return
+
+        # Fast path: No adjustments active
+        if self._brightness == 0 and self._contrast == 0 and abs(self._gamma - 1.0) < 0.01:
+            return
+
+        painter.save()
+
+        # ── 1. Brightness ──
+        if self._brightness > 0:
+            alpha = int((self._brightness / 100.0) * 190)
+            painter.fillRect(rect, QColor(255, 255, 255, alpha))
+        elif self._brightness < 0:
+            alpha = int((-self._brightness / 100.0) * 220)
+            painter.fillRect(rect, QColor(0, 0, 0, alpha))
+
+        # ── 2. Contrast ──
+        if self._contrast < 0:
+            alpha = int((-self._contrast / 100.0) * 180)
+            painter.fillRect(rect, QColor(128, 128, 128, alpha))
+        elif self._contrast > 0:
+            alpha = int((self._contrast / 100.0) * 170)
+            painter.setCompositionMode(QPainter.CompositionMode.CompositionMode_SoftLight)
+            painter.fillRect(rect, QColor(0, 0, 0, alpha))
+            painter.setCompositionMode(QPainter.CompositionMode.CompositionMode_SourceOver)
+
+        # ── 3. Gamma ──
+        if self._gamma > 1.01:
+            factor = min((self._gamma - 1.0) / 2.0, 1.0)
+            alpha = int(factor * 120)
+            painter.setCompositionMode(QPainter.CompositionMode.CompositionMode_Screen)
+            painter.fillRect(rect, QColor(200, 200, 200, alpha))
+            painter.setCompositionMode(QPainter.CompositionMode.CompositionMode_SourceOver)
+        elif self._gamma < 0.99:
+            factor = min((1.0 - self._gamma) / 0.9, 1.0)
+            alpha = int(factor * 130)
+            painter.setCompositionMode(QPainter.CompositionMode.CompositionMode_Multiply)
+            painter.fillRect(rect, QColor(100, 100, 100, alpha))
+            painter.setCompositionMode(QPainter.CompositionMode.CompositionMode_SourceOver)
+
+        painter.restore()
+
 
 
 class ZoomableVideoView(QGraphicsView):
@@ -40,6 +117,9 @@ class ZoomableVideoView(QGraphicsView):
 
         self._video_item = QGraphicsVideoItem()
         self._scene.addItem(self._video_item)
+
+        self._overlay = VideoAdjustmentOverlay(self._video_item)
+        self._scene.addItem(self._overlay)
 
         self._zoom: float = 1.0
         self._is_panning: bool = False
@@ -77,6 +157,10 @@ class ZoomableVideoView(QGraphicsView):
     def current_zoom(self) -> float:
         return self._zoom
 
+    def apply_adjustments(self, brightness: int, contrast: int, gamma: float) -> None:
+        """Apply real-time color adjustments to the video overlay."""
+        self._overlay.set_adjustments(brightness, contrast, gamma)
+
     def fit_video(self) -> None:
         """Reset zoom and fit the video to the view."""
         self.resetTransform()
@@ -87,6 +171,8 @@ class ZoomableVideoView(QGraphicsView):
             self._scene.setSceneRect(0, 0, size.width(), size.height())
             self.fitInView(self._video_item, Qt.AspectRatioMode.KeepAspectRatio)
             self.centerOn(self._video_item)
+            self._overlay.prepareGeometryChange()
+            self._overlay.update()
         self.zoom_changed.emit(self._zoom)
 
     # ── Pan with keyboard ───────────────────────────────────────────────
@@ -487,9 +573,14 @@ class VideoPlayer(QWidget):
         self._time_label.setText("00:00 / 00:00")
         self.playback_stopped.emit()
 
+    def apply_adjustments(self, brightness: int, contrast: int, gamma: float) -> None:
+        """Apply brightness/contrast/gamma color adjustments to video."""
+        self._video_view.apply_adjustments(brightness, contrast, gamma)
+
     def cleanup(self) -> None:
         self._player.stop()
         self._player.setSource(QUrl())
+        self.apply_adjustments(0, 0, 1.0)
 
     def skip_forward(self, ms: int = 5000) -> None:
         new_pos = min(self._player.position() + ms, self._player.duration())

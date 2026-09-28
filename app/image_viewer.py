@@ -3,6 +3,7 @@
 from pathlib import Path
 from typing import Optional
 
+import numpy as np
 from PySide6.QtCore import Qt, Signal, QRectF
 from PySide6.QtGui import (
     QPixmap, QWheelEvent, QMouseEvent, QTransform, QImage, QPainter,
@@ -74,7 +75,7 @@ class ImageViewer(QGraphicsView):
 
         # Store original for color adjustments
         self._original_image = image.convertToFormat(QImage.Format.Format_ARGB32)
-        pixmap = QPixmap.fromImage(image)
+        pixmap = QPixmap.fromImage(self._original_image)
 
         # Clear previous content
         self._scene.clear()
@@ -290,7 +291,7 @@ class ImageViewer(QGraphicsView):
         return self._zoom_factor
 
     def apply_adjustments(self, brightness: int, contrast: int, gamma: float) -> None:
-        """Apply brightness/contrast/gamma adjustments using a LUT.
+        """Apply brightness/contrast/gamma adjustments using a fast NumPy LUT.
 
         Args:
             brightness: -100 to +100
@@ -302,46 +303,43 @@ class ImageViewer(QGraphicsView):
 
         # Fast path — no adjustments
         if brightness == 0 and contrast == 0 and abs(gamma - 1.0) < 0.01:
-            pixmap = QPixmap.fromImage(self._original_image)
-            self._pixmap_item.setPixmap(pixmap)
+            self._pixmap_item.setPixmap(QPixmap.fromImage(self._original_image))
             return
 
-        # ── Build 256-entry LUT ──
+        # ── Build 256-entry LUT via NumPy ──
         contrast_factor = (100.0 + contrast) / 100.0
         inv_gamma = 1.0 / max(gamma, 0.01)
 
-        lut = bytearray(256)
-        for i in range(256):
-            val = float(i)
-            # Brightness shift
-            val += brightness * 2.55
-            # Contrast around midpoint
-            val = (val - 128.0) * contrast_factor + 128.0
-            # Gamma correction
-            val = max(0.0, min(255.0, val))
-            if inv_gamma != 1.0:
-                val = 255.0 * pow(val / 255.0, inv_gamma)
-            lut[i] = max(0, min(255, int(val + 0.5)))
+        indices = np.arange(256, dtype=np.float32)
+        val = indices + (brightness * 2.55)
+        val = (val - 128.0) * contrast_factor + 128.0
+        np.clip(val, 0.0, 255.0, out=val)
+        if abs(inv_gamma - 1.0) > 0.001:
+            val = 255.0 * np.power(val / 255.0, inv_gamma)
+        lut = np.clip(val + 0.5, 0, 255).astype(np.uint8)
 
-        # ── Apply LUT to pixel data ──
-        img = self._original_image  # Already ARGB32
-        raw = img.bits().tobytes()
-        data = bytearray(raw)
+        # ── Apply LUT to pixel data via NumPy vectorized indexing ──
+        img = self._original_image  # ARGB32
+        w, h = img.width(), img.height()
+        bpl = img.bytesPerLine()
 
-        # ARGB32 on little-endian = B G R A per pixel
-        for i in range(0, len(data), 4):
-            data[i] = lut[data[i]]          # B
-            data[i + 1] = lut[data[i + 1]]  # G
-            data[i + 2] = lut[data[i + 2]]  # R
-            # data[i+3] = alpha — leave unchanged
+        raw = img.bits()
+        arr = np.frombuffer(raw, dtype=np.uint8).reshape((h, bpl))
+        pixel_bytes = arr[:, : w * 4].reshape((h, w, 4))
+
+        out_pixels = pixel_bytes.copy()
+        out_pixels[:, :, 0] = lut[pixel_bytes[:, :, 0]]  # B
+        out_pixels[:, :, 1] = lut[pixel_bytes[:, :, 1]]  # G
+        out_pixels[:, :, 2] = lut[pixel_bytes[:, :, 2]]  # R
+        # out_pixels[:, :, 3] is Alpha — left untouched
 
         adjusted = QImage(
-            bytes(data),
-            img.width(),
-            img.height(),
-            img.bytesPerLine(),
+            out_pixels.data,
+            w,
+            h,
+            w * 4,
             QImage.Format.Format_ARGB32,
-        ).copy()  # .copy() ensures ownership of the data
+        ).copy()
 
         self._pixmap_item.setPixmap(QPixmap.fromImage(adjusted))
 

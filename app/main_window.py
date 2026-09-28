@@ -448,6 +448,11 @@ class MainWindow(QMainWindow):
         self._bottom_toolbar.set_file_info(self._file_manager.get_file_size_str(path))
         self.setWindowTitle(f"{path.name} — Media Viewer")
 
+        if self._adjustments_panel.has_adjustments():
+            self._adjustments_panel.reset()
+        else:
+            self._video_player.apply_adjustments(0, 0, 1.0)
+
     def _on_playback_error(self, err_msg: str) -> None:
         QMessageBox.warning(
             self,
@@ -584,6 +589,8 @@ class MainWindow(QMainWindow):
     ) -> None:
         if self._stack.currentIndex() == 1:
             self._image_viewer.apply_adjustments(brightness, contrast, gamma)
+        elif self._stack.currentIndex() == 2:
+            self._video_player.apply_adjustments(brightness, contrast, gamma)
 
     # ── Delete ──────────────────────────────────────────────────────────
 

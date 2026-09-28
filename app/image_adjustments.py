@@ -16,6 +16,7 @@ class AdjustmentSlider(QWidget):
     """A labeled slider with value display and optional decimal formatting."""
 
     value_changed = Signal(int)
+    slider_released = Signal()
 
     def __init__(
         self,
@@ -53,9 +54,11 @@ class AdjustmentSlider(QWidget):
 
         # Slider
         self._slider = QSlider(Qt.Orientation.Horizontal)
+        self._slider.setCursor(Qt.CursorShape.PointingHandCursor)
         self._slider.setRange(min_val, max_val)
         self._slider.setValue(default)
         self._slider.valueChanged.connect(self._on_changed)
+        self._slider.sliderReleased.connect(self.slider_released.emit)
         layout.addWidget(self._slider)
 
     def _format_value(self, value: int) -> str:
@@ -72,6 +75,7 @@ class AdjustmentSlider(QWidget):
 
     def reset(self) -> None:
         self._slider.setValue(self._default)
+        self._value_label.setText(self._format_value(self._default))
 
 
 class AdjustmentsPanel(QWidget):
@@ -142,19 +146,31 @@ class AdjustmentsPanel(QWidget):
         reset_btn.clicked.connect(self.reset)
         layout.addWidget(reset_btn)
 
-        # Debounce timer — prevent heavy computation on every slider tick
+        # Responsive live update timer (25ms) — smooth real-time preview
         self._timer = QTimer(self)
         self._timer.setSingleShot(True)
-        self._timer.setInterval(150)
+        self._timer.setInterval(25)
         self._timer.timeout.connect(self._emit_changes)
+
+        # Emit immediately on slider release
+        self._brightness.slider_released.connect(self._emit_changes)
+        self._contrast.slider_released.connect(self._emit_changes)
+        self._gamma.slider_released.connect(self._emit_changes)
 
     # ── Public API ──────────────────────────────────────────────────────
 
     def reset(self) -> None:
-        """Reset all sliders to their defaults."""
+        """Reset all sliders to their defaults cleanly."""
+        self._timer.stop()
+        self._brightness.blockSignals(True)
+        self._contrast.blockSignals(True)
+        self._gamma.blockSignals(True)
         self._brightness.reset()
         self._contrast.reset()
         self._gamma.reset()
+        self._brightness.blockSignals(False)
+        self._contrast.blockSignals(False)
+        self._gamma.blockSignals(False)
         self._emit_changes()
 
     def has_adjustments(self) -> bool:
