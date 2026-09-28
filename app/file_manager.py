@@ -8,13 +8,17 @@ class FileManager:
     """Manages a list of media files in a directory and provides navigation."""
 
     IMAGE_EXTENSIONS = {
-        ".jpg", ".jpeg", ".png", ".bmp", ".gif", ".webp",
+        ".jpg", ".jpeg", ".jfif", ".pjpeg", ".pjp",
+        ".png", ".bmp", ".gif", ".webp",
         ".tiff", ".tif", ".ico", ".svg",
+        ".heic", ".heif", ".avif",
     }
 
     VIDEO_EXTENSIONS = {
         ".mp4", ".avi", ".mkv", ".mov", ".wmv", ".flv",
         ".webm", ".m4v", ".mpg", ".mpeg", ".3gp",
+        ".mts", ".m2ts", ".ts", ".vob", ".ogv",
+        ".asf", ".f4v", ".rm", ".rmvb", ".divx",
     }
 
     ALL_EXTENSIONS = IMAGE_EXTENSIONS | VIDEO_EXTENSIONS
