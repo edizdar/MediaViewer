@@ -1,6 +1,7 @@
 """Video player widget with zoom, keyboard pan, and playback controls."""
 
 from pathlib import Path
+from typing import Optional
 
 from PySide6.QtCore import Qt, Signal, QUrl, Slot, QSizeF, QPoint, QEvent, QTimer, QRectF
 from PySide6.QtGui import QMouseEvent, QWheelEvent, QPainter, QColor
@@ -19,6 +20,8 @@ from PySide6.QtWidgets import (
     QGraphicsItem,
     QMenu,
 )
+
+from app.video_trim import TrimSlider, VideoTrimPanel
 
 
 class VideoAdjustmentOverlay(QGraphicsItem):
@@ -301,11 +304,16 @@ class VideoPlayer(QWidget):
     playback_stopped = Signal()
     playback_error = Signal(str)  # Emitted when a codec/playback error occurs
     speed_changed = Signal(float)  # Emitted when playback speed changes
+    trim_save_requested = Signal(Path, float, float)  # (path, start_sec, end_sec)
 
     SPEED_PRESETS = [0.25, 0.5, 0.75, 1.0, 1.25, 1.5, 1.75, 2.0]
 
     def __init__(self, parent=None) -> None:
         super().__init__(parent)
+
+        self._current_path: Optional[Path] = None
+        self._is_previewing_trim: bool = False
+        self._preview_end_ms: int = 0
 
         # ── Media components ──
         self._player = QMediaPlayer(self)
@@ -372,11 +380,16 @@ class VideoPlayer(QWidget):
         controls_layout.setContentsMargins(12, 6, 12, 8)
         controls_layout.setSpacing(6)
 
-        # Progress slider
-        self._progress_slider = QSlider(Qt.Orientation.Horizontal)
+        # Progress slider (with trim visualization)
+        self._progress_slider = TrimSlider(Qt.Orientation.Horizontal)
         self._progress_slider.setRange(0, 0)
         self._progress_slider.setToolTip("İlerleme")
         controls_layout.addWidget(self._progress_slider)
+
+        # Video trim panel (collapsible)
+        self._trim_panel = VideoTrimPanel()
+        self._trim_panel.setVisible(False)
+        controls_layout.addWidget(self._trim_panel)
 
         # Bottom row: play + time + volume
         bottom_row = QHBoxLayout()
@@ -403,6 +416,15 @@ class VideoPlayer(QWidget):
         bottom_row.addWidget(self._time_label)
 
         bottom_row.addStretch()
+
+        # Trim button
+        self._trim_btn = QPushButton("✂ Kırp")
+        self._trim_btn.setObjectName("speedBtn")
+        self._trim_btn.setToolTip("Video Süre Kesme / Kırpma (T)")
+        self._trim_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        self._trim_btn.setFixedHeight(30)
+        self._trim_btn.clicked.connect(self.toggle_trim)
+        bottom_row.addWidget(self._trim_btn)
 
         # Playback speed button
         self._speed_btn = QPushButton("1.0x")
@@ -453,6 +475,12 @@ class VideoPlayer(QWidget):
         self._progress_slider.sliderReleased.connect(self._on_seek_end)
         self._progress_slider.sliderMoved.connect(self._on_seek_moved)
         self._volume_slider.valueChanged.connect(self._on_volume_changed)
+
+        # Trim panel signals
+        self._trim_panel.range_changed.connect(self._on_trim_range_changed)
+        self._trim_panel.preview_requested.connect(self._on_trim_preview_requested)
+        self._trim_panel.save_requested.connect(self._on_trim_save_requested)
+        self._trim_panel.close_requested.connect(self.toggle_trim)
 
         self._player.errorOccurred.connect(self._on_player_error)
         self._player.mediaStatusChanged.connect(self._on_media_status_changed)
@@ -543,21 +571,72 @@ class VideoPlayer(QWidget):
                 return True
         return super().eventFilter(watched, event)
 
+    # ── Video Trim API ──────────────────────────────────────────────────
+
+    @property
+    def is_trimming(self) -> bool:
+        return not self._trim_panel.isHidden()
+
+    def toggle_trim(self) -> None:
+        """Toggle video trim mode on or off."""
+        is_visible = self._trim_panel.isHidden()
+        self._trim_panel.setVisible(is_visible)
+
+        # Style button to show active state
+        self._trim_btn.setProperty("active", "true" if is_visible else "false")
+        self._trim_btn.style().unpolish(self._trim_btn)
+        self._trim_btn.style().polish(self._trim_btn)
+
+        if is_visible:
+            self._trim_panel.reset_for_video(self._player.duration())
+            self._progress_slider.set_trim_range(
+                True, self._trim_panel.start_ms, self._trim_panel.end_ms
+            )
+        else:
+            self._is_previewing_trim = False
+            self._progress_slider.set_trim_range(False, 0, 0)
+
+    def set_trim_in_point(self) -> None:
+        """Set In-point (start) to current playback position."""
+        if self._trim_panel.isVisible():
+            self._trim_panel._set_start_to_current()
+
+    def set_trim_out_point(self) -> None:
+        """Set Out-point (end) to current playback position."""
+        if self._trim_panel.isVisible():
+            self._trim_panel._set_end_to_current()
+
+    def _on_trim_range_changed(self, start_ms: int, end_ms: int) -> None:
+        self._progress_slider.set_trim_range(True, start_ms, end_ms)
+
+    def _on_trim_preview_requested(self, start_ms: int, end_ms: int) -> None:
+        self._is_previewing_trim = True
+        self._preview_end_ms = end_ms
+        self._attach_audio()
+        self._player.setPosition(start_ms)
+        self._player.play()
+
+    def _on_trim_save_requested(self, start_sec: float, end_sec: float) -> None:
+        if self._current_path:
+            self.trim_save_requested.emit(self._current_path, start_sec, end_sec)
+
     # ── Playback API ────────────────────────────────────────────────────
 
     def load_video(self, path: str | Path) -> None:
+        self._current_path = Path(path).resolve()
         self._player.stop()
         # Temporarily detach audio output so that FFmpeg doesn't drop the initial video
         # frame due to A/V clock synchronization on low-framerate/still-photo MP4s (e.g. WhatsApp status).
         self._player.setAudioOutput(None)
         self._audio_attached = False
 
-        url = QUrl.fromLocalFile(str(Path(path).resolve()))
+        url = QUrl.fromLocalFile(str(self._current_path))
         self._player.setSource(url)
         self._play_btn.setText("▶")
         self._time_label.setText("00:00 / 00:00")
         self.set_playback_rate(1.0)
         self._video_view.fit_video()
+        self._trim_panel.reset_for_video(0)
         self._player.play()
 
         # Fallback: connect audio after 600ms if no video frame arrives (e.g. audio-only files)
@@ -591,6 +670,10 @@ class VideoPlayer(QWidget):
     def cleanup(self) -> None:
         self._player.stop()
         self._player.setSource(QUrl())
+        self._current_path = None
+        self._is_previewing_trim = False
+        if self._trim_panel.isVisible():
+            self.toggle_trim()
         self.apply_adjustments(0, 0, 1.0)
 
     def skip_forward(self, ms: int = 5000) -> None:
@@ -611,6 +694,13 @@ class VideoPlayer(QWidget):
         self._time_label.setText(
             f"{self._format_time(position)} / {self._format_time(duration)}"
         )
+
+        if self._is_previewing_trim and position >= self._preview_end_ms:
+            self._player.pause()
+            self._is_previewing_trim = False
+
+        self._trim_panel.update_state(position, duration)
+
         # Ensure video is sized to native resolution and centered if not yet done
         native_size = self._video_view.video_item.nativeSize()
         if (
@@ -623,6 +713,11 @@ class VideoPlayer(QWidget):
     @Slot(int)
     def _on_duration_changed(self, duration: int) -> None:
         self._progress_slider.setRange(0, duration)
+        self._trim_panel.update_state(self._player.position(), duration)
+        if self._trim_panel.isVisible():
+            self._progress_slider.set_trim_range(
+                True, self._trim_panel.start_ms, self._trim_panel.end_ms
+            )
 
     @Slot(QMediaPlayer.PlaybackState)
     def _on_state_changed(self, state: QMediaPlayer.PlaybackState) -> None:

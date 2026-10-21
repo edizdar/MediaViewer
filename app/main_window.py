@@ -4,7 +4,7 @@ from pathlib import Path
 from typing import Optional
 
 from PySide6.QtCore import Qt, QTimer, QEvent
-from PySide6.QtGui import QKeySequence, QShortcut, QDragEnterEvent, QDropEvent, QCursor
+from PySide6.QtGui import QKeySequence, QShortcut, QDragEnterEvent, QDropEvent, QCursor, QImage
 from PySide6.QtWidgets import (
     QMainWindow,
     QVBoxLayout,
@@ -15,6 +15,7 @@ from PySide6.QtWidgets import (
     QPushButton,
     QFileDialog,
     QMessageBox,
+    QProgressDialog,
     QSizePolicy,
     QApplication,
 )
@@ -22,6 +23,7 @@ from PySide6.QtWidgets import (
 from app.file_manager import FileManager
 from app.image_viewer import ImageViewer
 from app.video_player import VideoPlayer
+from app.video_trim import get_ffmpeg_executable, VideoTrimWorker
 from app.image_adjustments import AdjustmentsPanel
 from app.playlist import PlaylistPanel
 from app.toolbar import TopToolbar, BottomToolbar
@@ -171,6 +173,7 @@ class MainWindow(QMainWindow):
         self._bottom_toolbar.original_clicked.connect(self._image_viewer.original_size)
         self._bottom_toolbar.rotate_cw_clicked.connect(self._image_viewer.rotate_cw)
         self._bottom_toolbar.rotate_ccw_clicked.connect(self._image_viewer.rotate_ccw)
+        self._bottom_toolbar.crop_clicked.connect(self._toggle_image_crop)
         self._bottom_toolbar.delete_clicked.connect(self._delete_current_file)
         self._bottom_toolbar.adjustments_toggled.connect(self._toggle_adjustments)
 
@@ -178,10 +181,12 @@ class MainWindow(QMainWindow):
         self._image_viewer.zoom_changed.connect(self._bottom_toolbar.set_zoom_level)
         self._image_viewer.double_clicked.connect(self._toggle_fullscreen)
         self._image_viewer.image_loaded.connect(self._on_image_loaded)
+        self._image_viewer.crop_save_requested.connect(self._save_cropped_image)
 
         # Video player
         self._video_player.double_clicked.connect(self._toggle_fullscreen)
         self._video_player.playback_error.connect(self._on_playback_error)
+        self._video_player.trim_save_requested.connect(self._execute_video_trim)
 
         # Adjustments panel
         self._adjustments_panel.adjustments_changed.connect(
@@ -201,7 +206,7 @@ class MainWindow(QMainWindow):
         """Register keyboard shortcuts."""
         shortcuts = {
             "Ctrl+O": self.open_file_dialog,
-            "Ctrl+S": self._save_adjusted_image,
+            "Ctrl+S": self._on_save_shortcut,
             "Ctrl++": self._image_viewer.zoom_in,
             "Ctrl+=": self._image_viewer.zoom_in,
             "Ctrl+-": self._image_viewer.zoom_out,
@@ -209,6 +214,8 @@ class MainWindow(QMainWindow):
             "Ctrl+F": self._image_viewer.fit_to_window,
             "R": self._image_viewer.rotate_cw,
             "Shift+R": self._image_viewer.rotate_ccw,
+            "C": self._toggle_image_crop,
+            "T": self._toggle_video_trim,
             "Delete": self._delete_current_file,
             "Ctrl+J": self._toggle_adjustments,
             "Ctrl+L": self._toggle_playlist,
@@ -259,8 +266,19 @@ class MainWindow(QMainWindow):
                 return True
 
             elif key == Qt.Key.Key_Escape:
+                if self._image_viewer.is_cropping:
+                    self._image_viewer.cancel_crop()
+                    return True
+                if in_video and self._video_player.is_trimming:
+                    self._video_player.toggle_trim()
+                    return True
                 if self.isFullScreen():
                     self._exit_fullscreen()
+                    return True
+
+            elif key in (Qt.Key.Key_Return, Qt.Key.Key_Enter):
+                if self._image_viewer.is_cropping:
+                    self._image_viewer.apply_crop()
                     return True
 
             elif key == Qt.Key.Key_F11:
@@ -268,6 +286,14 @@ class MainWindow(QMainWindow):
                 return True
 
             if in_video:
+                if self._video_player.is_trimming:
+                    if key == Qt.Key.Key_I:
+                        self._video_player.set_trim_in_point()
+                        return True
+                    elif key == Qt.Key.Key_O:
+                        self._video_player.set_trim_out_point()
+                        return True
+
                 text = event.text()
                 if text == "[" or key == Qt.Key.Key_BracketLeft or text == "<":
                     self._video_player.decrease_speed()
@@ -278,6 +304,8 @@ class MainWindow(QMainWindow):
                 elif text == "\\" or key in (Qt.Key.Key_Backslash, Qt.Key.Key_Backspace):
                     self._video_player.reset_speed()
                     return True
+
+        return super().eventFilter(watched, event)
 
         return super().eventFilter(watched, event)
 
@@ -635,6 +663,147 @@ class MainWindow(QMainWindow):
                     "Hata",
                     "Fotoğraf kaydedilemedi!",
                 )
+
+    def _toggle_image_crop(self) -> None:
+        """Toggle interactive crop mode on images."""
+        if self._stack.currentIndex() != 1:
+            return
+        if self._image_viewer.is_cropping:
+            self._image_viewer.cancel_crop()
+        else:
+            self._image_viewer.start_crop()
+
+    def _toggle_video_trim(self) -> None:
+        """Toggle video trim controls."""
+        if self._stack.currentIndex() != 2:
+            return
+        self._video_player.toggle_trim()
+
+    def _on_save_shortcut(self) -> None:
+        """Save shortcut (Ctrl+S) dispatcher."""
+        if self._image_viewer.is_cropping:
+            self._image_viewer.save_crop()
+        else:
+            self._save_adjusted_image()
+
+    def _save_cropped_image(self, cropped_image: QImage) -> None:
+        """Save the cropped image to disk."""
+        current = self._file_manager.current_file
+        if current is None:
+            default_name = "kırpılan_resim.jpg"
+            default_path = str(Path.home() / default_name)
+            suffix = ".jpg"
+        else:
+            default_name = f"{current.stem}_crop{current.suffix}"
+            default_path = str(current.parent / default_name)
+            suffix = current.suffix
+
+        save_path, _ = QFileDialog.getSaveFileName(
+            self,
+            "Kırpılan Fotoğrafı Kaydet",
+            default_path,
+            f"Fotoğraf (*{suffix});;Tüm Dosyalar (*)",
+        )
+        if save_path:
+            success = cropped_image.save(save_path)
+            if success:
+                self._image_viewer.cancel_crop()
+                QMessageBox.information(
+                    self,
+                    "Kaydedildi",
+                    f"Fotoğraf başarıyla kırpıldı ve kaydedildi:\n{Path(save_path).name}",
+                )
+                self._file_manager.load_from_file(Path(save_path))
+                self.open_file(save_path)
+            else:
+                QMessageBox.warning(
+                    self,
+                    "Hata",
+                    "Fotoğraf kaydedilemedi!",
+                )
+
+    def _execute_video_trim(self, video_path: Path, start_sec: float, end_sec: float) -> None:
+        """Execute video trimming via FFmpeg in a background thread."""
+        ffmpeg_exe = get_ffmpeg_executable()
+        if not ffmpeg_exe:
+            QMessageBox.warning(
+                self,
+                "FFmpeg Bulunamadı",
+                "Video kesme işlemi için FFmpeg bileşeni bulunamadı.\n"
+                "Lütfen FFmpeg'in kurulu olduğundan emin olun.",
+            )
+            return
+
+        default_name = f"{video_path.stem}_trim{video_path.suffix}"
+        default_path = str(video_path.parent / default_name)
+
+        save_path, _ = QFileDialog.getSaveFileName(
+            self,
+            "Kesilen Videoyu Kaydet",
+            default_path,
+            f"Video (*{video_path.suffix});;Tüm Dosyalar (*)",
+        )
+        if not save_path:
+            return
+
+        out_path = Path(save_path)
+        if out_path.resolve() == video_path.resolve():
+            QMessageBox.warning(
+                self,
+                "Geçersiz Dosya Adı",
+                "Orijinal dosyanın üzerine doğrudan yazılamaz.\nLütfen farklı bir dosya adı seçin.",
+            )
+            return
+
+        # Show modal waiting progress dialog
+        progress = QProgressDialog(
+            "Video kırpılıyor ve kaydediliyor, lütfen bekleyin...",
+            None,
+            0,
+            0,
+            self,
+        )
+        progress.setWindowTitle("Video Kesiliyor")
+        progress.setWindowModality(Qt.WindowModality.WindowModal)
+        progress.setMinimumDuration(0)
+        progress.setValue(0)
+        progress.show()
+
+        # Stop playback during trim
+        self._video_player.pause()
+
+        # Run worker
+        self._trim_worker = VideoTrimWorker(
+            ffmpeg_exe=ffmpeg_exe,
+            input_path=video_path,
+            output_path=out_path,
+            start_sec=start_sec,
+            end_sec=end_sec,
+            parent=self,
+        )
+
+        def on_trim_finished(success: bool, msg: str, final_path: str):
+            progress.close()
+            if success:
+                reply = QMessageBox.question(
+                    self,
+                    "Video Kesildi",
+                    f"Video başarıyla kırpıldı ve kaydedildi:\n{out_path.name}\n\n"
+                    "Yeni videoyu şimdi açmak ister misiniz?",
+                    QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+                    QMessageBox.StandardButton.Yes,
+                )
+                if reply == QMessageBox.StandardButton.Yes:
+                    self.open_file(final_path)
+            else:
+                QMessageBox.critical(
+                    self,
+                    "Kesme Hatası",
+                    f"Video kesilemedi:\n{msg}",
+                )
+
+        self._trim_worker.finished.connect(on_trim_finished)
+        self._trim_worker.start()
 
     # ── Delete ──────────────────────────────────────────────────────────
 

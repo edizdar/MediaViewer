@@ -14,6 +14,8 @@ from PySide6.QtWidgets import (
     QGraphicsPixmapItem,
 )
 
+from app.image_crop import CropOverlayItem, CropHUD
+
 
 class ImageViewer(QGraphicsView):
     """A graphics view widget for displaying and interacting with images.
@@ -28,6 +30,8 @@ class ImageViewer(QGraphicsView):
     zoom_changed = Signal(float)  # Emitted when zoom level changes (1.0 = 100%)
     double_clicked = Signal()  # Emitted on double-click (for fullscreen toggle)
     image_loaded = Signal(int, int)  # Emitted with (width, height) when image loads
+    crop_save_requested = Signal(QImage)  # Emitted when crop save is clicked
+    crop_applied = Signal()  # Emitted when crop is applied to current view
 
     ZOOM_MIN = 0.05  # 5%
     ZOOM_MAX = 50.0  # 5000%
@@ -46,6 +50,8 @@ class ImageViewer(QGraphicsView):
         self._is_panning: bool = False
         self._pan_start = None
         self._fit_mode: bool = True  # Start in fit-to-window mode
+        self._crop_item: Optional[CropOverlayItem] = None
+        self._crop_hud: Optional[CropHUD] = None
 
         # View configuration
         self.setRenderHints(
@@ -67,6 +73,7 @@ class ImageViewer(QGraphicsView):
 
     def load_image(self, path: str | Path) -> bool:
         """Load and display an image from the given path. Returns True on success."""
+        self.cancel_crop()
         path = Path(path)
 
         # Load image
@@ -100,6 +107,7 @@ class ImageViewer(QGraphicsView):
 
     def clear(self) -> None:
         """Clear the current image."""
+        self.cancel_crop()
         self._scene.clear()
         self._pixmap_item = None
         self._original_image = None
@@ -239,7 +247,17 @@ class ImageViewer(QGraphicsView):
         self._apply_zoom(factor)
 
     def mousePressEvent(self, event: QMouseEvent) -> None:
-        """Start panning on middle or left button."""
+        """Start panning on middle or left button (unless cropping)."""
+        if self.is_cropping:
+            if event.button() == Qt.MouseButton.MiddleButton:
+                self._is_panning = True
+                self._pan_start = event.position()
+                self.viewport().setCursor(Qt.CursorShape.ClosedHandCursor)
+                event.accept()
+                return
+            super().mousePressEvent(event)
+            return
+
         if event.button() in (Qt.MouseButton.MiddleButton, Qt.MouseButton.LeftButton):
             self._is_panning = True
             self._pan_start = event.position()
@@ -266,25 +284,128 @@ class ImageViewer(QGraphicsView):
 
     def mouseReleaseEvent(self, event: QMouseEvent) -> None:
         """Stop panning on button release."""
-        if event.button() in (Qt.MouseButton.MiddleButton, Qt.MouseButton.LeftButton):
+        if self._is_panning and event.button() in (Qt.MouseButton.MiddleButton, Qt.MouseButton.LeftButton):
             self._is_panning = False
             self._pan_start = None
-            self.viewport().setCursor(Qt.CursorShape.ArrowCursor)
+            if not self.is_cropping:
+                self.viewport().setCursor(Qt.CursorShape.ArrowCursor)
             event.accept()
         else:
             super().mouseReleaseEvent(event)
 
     def mouseDoubleClickEvent(self, event: QMouseEvent) -> None:
-        """Emit double_clicked signal for fullscreen toggle."""
-        if event.button() == Qt.MouseButton.LeftButton:
+        """Emit double_clicked signal for fullscreen toggle (disabled while cropping)."""
+        if not self.is_cropping and event.button() == Qt.MouseButton.LeftButton:
             self.double_clicked.emit()
         super().mouseDoubleClickEvent(event)
 
     def resizeEvent(self, event) -> None:
-        """Re-fit image when the widget is resized (if in fit mode)."""
+        """Re-fit image when the widget is resized (if in fit mode) and reposition HUD."""
         super().resizeEvent(event)
-        if self._fit_mode and self._pixmap_item is not None:
+        if self._fit_mode and self._pixmap_item is not None and not self.is_cropping:
             self.fit_to_window()
+        self._update_crop_hud_pos()
+
+    # ── Crop API ────────────────────────────────────────────────────────
+
+    @property
+    def is_cropping(self) -> bool:
+        """Return True if crop mode is currently active."""
+        return self._crop_item is not None
+
+    def start_crop(self) -> None:
+        """Enter interactive crop mode."""
+        if self._original_image is None or self._pixmap_item is None:
+            return
+
+        if self.is_cropping:
+            return
+
+        # If rotated, bake the rotation into original_image first so coordinates match 1:1
+        if self._rotation != 0:
+            t = QTransform()
+            t.rotate(self._rotation)
+            self._original_image = self._original_image.transformed(t)
+            self._rotation = 0
+            self._pixmap_item.setPixmap(QPixmap.fromImage(self._original_image))
+            self._scene.setSceneRect(QRectF(self._original_image.rect()))
+            self.fit_to_window()
+
+        img_w = self._original_image.width()
+        img_h = self._original_image.height()
+
+        self._crop_item = CropOverlayItem(img_w, img_h)
+        self._crop_item.rect_changed.connect(self._on_crop_rect_changed)
+        self._scene.addItem(self._crop_item)
+
+        # Create and display floating HUD
+        self._crop_hud = CropHUD(self)
+        self._crop_hud.apply_clicked.connect(self.apply_crop)
+        self._crop_hud.save_clicked.connect(self.save_crop)
+        self._crop_hud.cancel_clicked.connect(self.cancel_crop)
+        self._crop_hud.ratio_changed.connect(self._crop_item.set_aspect_ratio)
+
+        r = self._crop_item.crop_rect
+        self._crop_hud.set_crop_dimensions(int(r.width()), int(r.height()))
+        self._update_crop_hud_pos()
+        self._crop_hud.show()
+        self._crop_hud.raise_()
+
+    def cancel_crop(self) -> None:
+        """Exit crop mode without applying changes."""
+        if self._crop_item is not None:
+            if self._crop_item.scene() == self._scene:
+                self._scene.removeItem(self._crop_item)
+            self._crop_item = None
+
+        if self._crop_hud is not None:
+            self._crop_hud.hide()
+            self._crop_hud.deleteLater()
+            self._crop_hud = None
+
+        self.viewport().setCursor(Qt.CursorShape.ArrowCursor)
+
+    def apply_crop(self) -> None:
+        """Apply current crop selection to displayed image in viewer."""
+        if not self.is_cropping or self._original_image is None:
+            return
+
+        r = self._crop_item.crop_rect.toRect()
+        r = r.intersected(self._original_image.rect())
+        if r.width() >= 10 and r.height() >= 10:
+            cropped = self._original_image.copy(r)
+            self.cancel_crop()
+
+            self._original_image = cropped
+            self._pixmap_item.setPixmap(QPixmap.fromImage(self._original_image))
+            self._scene.setSceneRect(QRectF(self._original_image.rect()))
+            self.fit_to_window()
+            self.image_loaded.emit(cropped.width(), cropped.height())
+            self.crop_applied.emit()
+        else:
+            self.cancel_crop()
+
+    def save_crop(self) -> None:
+        """Request saving the current crop selection as a file."""
+        if not self.is_cropping or self._original_image is None:
+            return
+
+        r = self._crop_item.crop_rect.toRect()
+        r = r.intersected(self._original_image.rect())
+        if r.width() >= 10 and r.height() >= 10:
+            cropped = self._original_image.copy(r)
+            self.crop_save_requested.emit(cropped)
+
+    def _update_crop_hud_pos(self) -> None:
+        if self._crop_hud is not None:
+            self._crop_hud.adjustSize()
+            hud_w = self._crop_hud.width()
+            x = max(10, (self.viewport().width() - hud_w) // 2)
+            self._crop_hud.move(x, 16)
+
+    def _on_crop_rect_changed(self, rect: QRectF) -> None:
+        if self._crop_hud is not None:
+            self._crop_hud.set_crop_dimensions(int(rect.width()), int(rect.height()))
 
     @property
     def current_zoom(self) -> float:

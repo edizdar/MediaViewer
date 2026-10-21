@@ -124,6 +124,7 @@ class BottomToolbar(QWidget):
     original_clicked = Signal()
     rotate_cw_clicked = Signal()
     rotate_ccw_clicked = Signal()
+    crop_clicked = Signal()
     delete_clicked = Signal()
     adjustments_toggled = Signal()
 
@@ -177,6 +178,13 @@ class BottomToolbar(QWidget):
         self._rotate_cw_btn = _icon_button("↻", "Sağa Döndür (R)")
         self._rotate_cw_btn.clicked.connect(self.rotate_cw_clicked)
         img_layout.addWidget(self._rotate_cw_btn)
+
+        img_layout.addWidget(_separator())
+
+        # Crop button
+        self._crop_btn = _icon_button("✂", "Fotoğrafı Kırp (C)")
+        self._crop_btn.clicked.connect(self.crop_clicked)
+        img_layout.addWidget(self._crop_btn)
 
         layout.addWidget(self._image_controls)
 
