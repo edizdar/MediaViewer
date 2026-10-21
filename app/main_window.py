@@ -722,8 +722,14 @@ class MainWindow(QMainWindow):
                     "Fotoğraf kaydedilemedi!",
                 )
 
-    def _execute_video_trim(self, video_path: Path, start_sec: float, end_sec: float) -> None:
-        """Execute video trimming via FFmpeg in a background thread."""
+    def _execute_video_trim(
+        self,
+        video_path: Path,
+        start_sec: float,
+        end_sec: float,
+        crop_box: Optional[tuple[int, int, int, int]] = None,
+    ) -> None:
+        """Execute video trimming and/or spatial cropping via FFmpeg in a background thread."""
         ffmpeg_exe = get_ffmpeg_executable()
         if not ffmpeg_exe:
             QMessageBox.warning(
@@ -734,12 +740,14 @@ class MainWindow(QMainWindow):
             )
             return
 
-        default_name = f"{video_path.stem}_trim{video_path.suffix}"
+        tag_suffix = "_crop" if crop_box is not None else "_trim"
+        default_name = f"{video_path.stem}{tag_suffix}{video_path.suffix}"
         default_path = str(video_path.parent / default_name)
 
+        save_title = "Kırpılan Videoyu Kaydet" if crop_box is not None else "Kesilen Videoyu Kaydet"
         save_path, _ = QFileDialog.getSaveFileName(
             self,
-            "Kesilen Videoyu Kaydet",
+            save_title,
             default_path,
             f"Video (*{video_path.suffix});;Tüm Dosyalar (*)",
         )
@@ -756,14 +764,19 @@ class MainWindow(QMainWindow):
             return
 
         # Show modal waiting progress dialog
+        status_msg = (
+            "Video alanı ve süresi kırpılıyor, lütfen bekleyin..."
+            if crop_box is not None
+            else "Video kesiliyor ve kaydediliyor, lütfen bekleyin..."
+        )
         progress = QProgressDialog(
-            "Video kırpılıyor ve kaydediliyor, lütfen bekleyin...",
+            status_msg,
             None,
             0,
             0,
             self,
         )
-        progress.setWindowTitle("Video Kesiliyor")
+        progress.setWindowTitle("Video İşleniyor")
         progress.setWindowModality(Qt.WindowModality.WindowModal)
         progress.setMinimumDuration(0)
         progress.setValue(0)
@@ -779,6 +792,7 @@ class MainWindow(QMainWindow):
             output_path=out_path,
             start_sec=start_sec,
             end_sec=end_sec,
+            crop_box=crop_box,
             parent=self,
         )
 
@@ -787,8 +801,8 @@ class MainWindow(QMainWindow):
             if success:
                 reply = QMessageBox.question(
                     self,
-                    "Video Kesildi",
-                    f"Video başarıyla kırpıldı ve kaydedildi:\n{out_path.name}\n\n"
+                    "İşlem Tamamlandı",
+                    f"Video başarıyla kaydedildi:\n{out_path.name}\n\n"
                     "Yeni videoyu şimdi açmak ister misiniz?",
                     QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
                     QMessageBox.StandardButton.Yes,
@@ -798,8 +812,8 @@ class MainWindow(QMainWindow):
             else:
                 QMessageBox.critical(
                     self,
-                    "Kesme Hatası",
-                    f"Video kesilemedi:\n{msg}",
+                    "İşlem Hatası",
+                    f"Video işlenemedi:\n{msg}",
                 )
 
         self._trim_worker.finished.connect(on_trim_finished)

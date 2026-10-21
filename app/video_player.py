@@ -22,6 +22,7 @@ from PySide6.QtWidgets import (
 )
 
 from app.video_trim import TrimSlider, VideoTrimPanel
+from app.image_crop import CropOverlayItem
 
 
 class VideoAdjustmentOverlay(QGraphicsItem):
@@ -117,6 +118,7 @@ class ZoomableVideoView(QGraphicsView):
 
     double_clicked = Signal()
     zoom_changed = Signal(float)
+    crop_rect_changed = Signal(QRectF)
 
     ZOOM_MIN = 0.5
     ZOOM_MAX = 10.0
@@ -134,6 +136,7 @@ class ZoomableVideoView(QGraphicsView):
         self._overlay = VideoAdjustmentOverlay(self._video_item)
         self._scene.addItem(self._overlay)
 
+        self._crop_item: Optional[CropOverlayItem] = None
         self._zoom: float = 1.0
         self._is_panning: bool = False
         self._pan_start = None
@@ -249,7 +252,58 @@ class ZoomableVideoView(QGraphicsView):
 
         self.zoom_changed.emit(self._zoom)
 
+    # ── Video Spatial Crop API ──────────────────────────────────────────
+
+    @property
+    def is_cropping(self) -> bool:
+        return self._crop_item is not None
+
+    def start_crop(self) -> None:
+        """Start interactive rectangular crop mode over video."""
+        if self._crop_item is not None:
+            return
+        size = self._video_item.size()
+        if not size.isValid() or size.width() <= 0 or size.height() <= 0:
+            size = self._video_item.nativeSize()
+        if not size.isValid() or size.width() <= 0 or size.height() <= 0:
+            return
+
+        w = int(size.width())
+        h = int(size.height())
+        self._crop_item = CropOverlayItem(w, h)
+        self._crop_item.rect_changed.connect(self.crop_rect_changed)
+        self._scene.addItem(self._crop_item)
+        self.crop_rect_changed.emit(self._crop_item.crop_rect)
+
+    def cancel_crop(self) -> None:
+        """Exit crop mode."""
+        if self._crop_item is not None:
+            if self._crop_item.scene() == self._scene:
+                self._scene.removeItem(self._crop_item)
+            self._crop_item = None
+        self.viewport().setCursor(Qt.CursorShape.ArrowCursor)
+
+    def set_crop_aspect_ratio(self, ratio: Optional[float]) -> None:
+        if self._crop_item is not None:
+            self._crop_item.set_aspect_ratio(ratio)
+
+    def get_crop_box(self) -> Optional[tuple[int, int, int, int]]:
+        if self._crop_item is not None:
+            r = self._crop_item.crop_rect.toRect()
+            return (r.x(), r.y(), r.width(), r.height())
+        return None
+
     def mousePressEvent(self, event: QMouseEvent) -> None:
+        if self.is_cropping:
+            if event.button() == Qt.MouseButton.MiddleButton:
+                self._is_panning = True
+                self._pan_start = event.position()
+                self.viewport().setCursor(Qt.CursorShape.ClosedHandCursor)
+                event.accept()
+                return
+            super().mousePressEvent(event)
+            return
+
         if event.button() in (Qt.MouseButton.LeftButton, Qt.MouseButton.MiddleButton):
             self._is_panning = True
             self._pan_start = event.position()
@@ -273,16 +327,17 @@ class ZoomableVideoView(QGraphicsView):
             super().mouseMoveEvent(event)
 
     def mouseReleaseEvent(self, event: QMouseEvent) -> None:
-        if event.button() in (Qt.MouseButton.LeftButton, Qt.MouseButton.MiddleButton):
+        if self._is_panning and event.button() in (Qt.MouseButton.LeftButton, Qt.MouseButton.MiddleButton):
             self._is_panning = False
             self._pan_start = None
-            self.viewport().setCursor(Qt.CursorShape.ArrowCursor)
+            if not self.is_cropping:
+                self.viewport().setCursor(Qt.CursorShape.ArrowCursor)
             event.accept()
         else:
             super().mouseReleaseEvent(event)
 
     def mouseDoubleClickEvent(self, event: QMouseEvent) -> None:
-        if event.button() == Qt.MouseButton.LeftButton:
+        if not self.is_cropping and event.button() == Qt.MouseButton.LeftButton:
             self.double_clicked.emit()
         super().mouseDoubleClickEvent(event)
 
@@ -304,7 +359,7 @@ class VideoPlayer(QWidget):
     playback_stopped = Signal()
     playback_error = Signal(str)  # Emitted when a codec/playback error occurs
     speed_changed = Signal(float)  # Emitted when playback speed changes
-    trim_save_requested = Signal(Path, float, float)  # (path, start_sec, end_sec)
+    trim_save_requested = Signal(Path, float, float, object)  # (path, start_sec, end_sec, crop_box)
 
     SPEED_PRESETS = [0.25, 0.5, 0.75, 1.0, 1.25, 1.5, 1.75, 2.0]
 
@@ -481,6 +536,11 @@ class VideoPlayer(QWidget):
         self._trim_panel.preview_requested.connect(self._on_trim_preview_requested)
         self._trim_panel.save_requested.connect(self._on_trim_save_requested)
         self._trim_panel.close_requested.connect(self.toggle_trim)
+        self._trim_panel.crop_area_toggled.connect(self._on_crop_area_toggled)
+        self._trim_panel.crop_ratio_changed.connect(self._video_view.set_crop_aspect_ratio)
+
+        # Video view signals
+        self._video_view.crop_rect_changed.connect(self._on_video_crop_rect_changed)
 
         self._player.errorOccurred.connect(self._on_player_error)
         self._player.mediaStatusChanged.connect(self._on_media_status_changed)
@@ -595,6 +655,7 @@ class VideoPlayer(QWidget):
         else:
             self._is_previewing_trim = False
             self._progress_slider.set_trim_range(False, 0, 0)
+            self._video_view.cancel_crop()
 
     def set_trim_in_point(self) -> None:
         """Set In-point (start) to current playback position."""
@@ -616,9 +677,21 @@ class VideoPlayer(QWidget):
         self._player.setPosition(start_ms)
         self._player.play()
 
-    def _on_trim_save_requested(self, start_sec: float, end_sec: float) -> None:
+    def _on_crop_area_toggled(self, active: bool) -> None:
+        if active:
+            self._video_view.start_crop()
+        else:
+            self._video_view.cancel_crop()
+
+    def _on_video_crop_rect_changed(self, rect: QRectF) -> None:
+        r = rect.toRect()
+        self._trim_panel.set_crop_box(r.x(), r.y(), r.width(), r.height())
+
+    def _on_trim_save_requested(
+        self, start_sec: float, end_sec: float, crop_box: Optional[tuple[int, int, int, int]]
+    ) -> None:
         if self._current_path:
-            self.trim_save_requested.emit(self._current_path, start_sec, end_sec)
+            self.trim_save_requested.emit(self._current_path, start_sec, end_sec, crop_box)
 
     # ── Playback API ────────────────────────────────────────────────────
 
@@ -672,6 +745,7 @@ class VideoPlayer(QWidget):
         self._player.setSource(QUrl())
         self._current_path = None
         self._is_previewing_trim = False
+        self._video_view.cancel_crop()
         if self._trim_panel.isVisible():
             self.toggle_trim()
         self.apply_adjustments(0, 0, 1.0)

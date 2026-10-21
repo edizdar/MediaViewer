@@ -404,6 +404,7 @@ class CropHUD(QWidget):
         self._ratio_combo.addItem("Serbest", None)
         self._ratio_combo.addItem("1:1 (Kare)", 1.0)
         self._ratio_combo.addItem("16:9 (Geniş)", 16.0 / 9.0)
+        self._ratio_combo.addItem("9:16 (Dikey / Reels)", 9.0 / 16.0)
         self._ratio_combo.addItem("4:3 (Standart)", 4.0 / 3.0)
         self._ratio_combo.addItem("3:2 (Fotoğraf)", 3.0 / 2.0)
         self._ratio_combo.currentIndexChanged.connect(self._on_ratio_changed)
