@@ -5,3 +5,4 @@ build/
 *.spec
 .vscode/
 .idea/
+/MediaViewer.exe
