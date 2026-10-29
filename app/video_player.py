@@ -78,65 +78,81 @@ class VideoAdjustmentOverlay(QGraphicsItem):
         if rect.isEmpty():
             return
 
-        eff_brightness = self._brightness
-        eff_contrast = self._contrast
-        eff_gamma = self._gamma
+        has_manual = (
+            self._brightness != 0
+            or self._contrast != 0
+            or abs(self._gamma - 1.0) >= 0.01
+        )
 
-        if self._smart_enhance:
-            eff_brightness += 4 + self._adaptive_brightness_boost
-            eff_contrast += 18
-            eff_gamma *= (1.20 + self._adaptive_gamma_boost)
-
-        # Fast path: No adjustments active
-        if (
-            eff_brightness == 0
-            and eff_contrast == 0
-            and abs(eff_gamma - 1.0) < 0.01
-            and not self._smart_enhance
-        ):
+        if not self._smart_enhance and not has_manual:
             return
 
         painter.save()
 
-        # ── 1. Brightness (Exposure Gain / Attenuation) ──
-        if eff_brightness > 0:
-            val = int((eff_brightness / 100.0) * 165)
-            painter.setCompositionMode(QPainter.CompositionMode.CompositionMode_ColorDodge)
-            painter.fillRect(rect, QColor(val, val, val))
-        elif eff_brightness < 0:
-            factor = 1.0 - (-eff_brightness / 100.0) * 0.85
-            val = max(10, min(255, int(255 * factor)))
-            painter.setCompositionMode(QPainter.CompositionMode.CompositionMode_Multiply)
-            painter.fillRect(rect, QColor(val, val, val))
-
-        # ── 2. Contrast ──
-        if eff_contrast < 0:
-            alpha = int((-eff_contrast / 100.0) * 160)
-            painter.setCompositionMode(QPainter.CompositionMode.CompositionMode_SourceOver)
-            painter.fillRect(rect, QColor(128, 128, 128, alpha))
-        elif eff_contrast > 0:
-            val_mult = 255 - int((eff_contrast / 100.0) * 50)
-            painter.setCompositionMode(QPainter.CompositionMode.CompositionMode_Multiply)
-            painter.fillRect(rect, QColor(val_mult, val_mult, val_mult))
-            val_dodge = int((eff_contrast / 100.0) * 65)
-            painter.setCompositionMode(QPainter.CompositionMode.CompositionMode_ColorDodge)
-            painter.fillRect(rect, QColor(val_dodge, val_dodge, val_dodge))
-
-        # ── 3. Gamma (Midtone Shadow Curve) ──
-        if eff_gamma > 1.01:
-            alpha = int(min((eff_gamma - 1.0) / 2.0, 1.0) * 220)
-            painter.setCompositionMode(QPainter.CompositionMode.CompositionMode_SoftLight)
-            painter.fillRect(rect, QColor(255, 255, 255, alpha))
-        elif eff_gamma < 0.99:
-            alpha = int(min((1.0 - eff_gamma) / 0.9, 1.0) * 220)
-            painter.setCompositionMode(QPainter.CompositionMode.CompositionMode_SoftLight)
-            painter.fillRect(rect, QColor(0, 0, 0, alpha))
-
-        # ── 4. Smart Enhance Micro-Vibrancy Boost ──
+        # ── 1. Smart Quality Enhancement (Vivid, Punchy & Clear) ──
         if self._smart_enhance:
-            # Soft warm-vibrant glow lifts muted colors and adds natural vitality
+            # 1a. Dehaze & Deep Contrast (ColorBurn)
+            # Clears milky fog and deepens washed-out blacks without crushing detail
+            burn_val = 242
+            if self._adaptive_brightness_boost < 0:  # Bright scene
+                burn_val = 238
+            elif self._adaptive_brightness_boost > 0:  # Dark scene
+                burn_val = 246
+            painter.setCompositionMode(QPainter.CompositionMode.CompositionMode_ColorBurn)
+            painter.fillRect(rect, QColor(burn_val, burn_val, burn_val))
+
+            # 1b. Dynamic Midtone Clarity & Shadow Lift (SoftLight)
+            # Lifts shadow details so dark areas become clearly visible
+            soft_alpha = 110 + int(self._adaptive_gamma_boost * 150)
+            soft_alpha = max(60, min(170, soft_alpha))
             painter.setCompositionMode(QPainter.CompositionMode.CompositionMode_SoftLight)
-            painter.fillRect(rect, QColor(255, 240, 215, 30))
+            painter.fillRect(rect, QColor(255, 255, 255, soft_alpha))
+
+            # 1c. Vivid Vibrancy & Saturation Pop (Overlay with warm radiant tint)
+            # Turns flat, muted video colors into vibrant, healthy, and vivid colors
+            painter.setCompositionMode(QPainter.CompositionMode.CompositionMode_Overlay)
+            painter.fillRect(rect, QColor(255, 185, 95, 52))
+
+            # 1d. Specular Highlight Brilliance (ColorDodge)
+            # Brings out crisp sheen and reflections
+            painter.setCompositionMode(QPainter.CompositionMode.CompositionMode_ColorDodge)
+            painter.fillRect(rect, QColor(22, 22, 22))
+
+        # ── 2. Manual Adjustments (from Ctrl+J panel or sliders) ──
+        if has_manual:
+            # Brightness (Exposure Gain / Attenuation)
+            if self._brightness > 0:
+                val = int((self._brightness / 100.0) * 125)
+                painter.setCompositionMode(QPainter.CompositionMode.CompositionMode_ColorDodge)
+                painter.fillRect(rect, QColor(val, val, val))
+            elif self._brightness < 0:
+                factor = 1.0 - (-self._brightness / 100.0) * 0.85
+                val = max(10, min(255, int(255 * factor)))
+                painter.setCompositionMode(QPainter.CompositionMode.CompositionMode_Multiply)
+                painter.fillRect(rect, QColor(val, val, val))
+
+            # Contrast (True S-Curve via ColorBurn & ColorDodge)
+            if self._contrast > 0:
+                burn = 255 - int((self._contrast / 100.0) * 60)
+                painter.setCompositionMode(QPainter.CompositionMode.CompositionMode_ColorBurn)
+                painter.fillRect(rect, QColor(burn, burn, burn))
+                dodge = int((self._contrast / 100.0) * 55)
+                painter.setCompositionMode(QPainter.CompositionMode.CompositionMode_ColorDodge)
+                painter.fillRect(rect, QColor(dodge, dodge, dodge))
+            elif self._contrast < 0:
+                alpha = int((-self._contrast / 100.0) * 160)
+                painter.setCompositionMode(QPainter.CompositionMode.CompositionMode_SourceOver)
+                painter.fillRect(rect, QColor(128, 128, 128, alpha))
+
+            # Gamma (Midtone Curve)
+            if self._gamma > 1.01:
+                alpha = int(min((self._gamma - 1.0) / 1.5, 1.0) * 200)
+                painter.setCompositionMode(QPainter.CompositionMode.CompositionMode_SoftLight)
+                painter.fillRect(rect, QColor(255, 255, 255, alpha))
+            elif self._gamma < 0.99:
+                alpha = int(min((1.0 - self._gamma) / 0.9, 1.0) * 200)
+                painter.setCompositionMode(QPainter.CompositionMode.CompositionMode_SoftLight)
+                painter.fillRect(rect, QColor(0, 0, 0, alpha))
 
         painter.restore()
 
@@ -379,6 +395,7 @@ class ZoomableVideoView(QGraphicsView):
     def apply_adjustments(self, brightness: int, contrast: int, gamma: float) -> None:
         """Apply real-time color adjustments to the video overlay."""
         self._overlay.set_adjustments(brightness, contrast, gamma)
+        self.viewport().update()
 
     def fit_video(self) -> None:
         """Reset zoom and fit the video to the view."""
@@ -569,6 +586,7 @@ class ZoomableVideoView(QGraphicsView):
         self, enabled: bool, adaptive_gamma: float = 0.0, adaptive_brightness: int = 0
     ) -> None:
         self._overlay.set_smart_enhance(enabled, adaptive_gamma, adaptive_brightness)
+        self.viewport().update()
 
     def show_osd(self, text: str, is_active: bool = True) -> None:
         if hasattr(self, "_osd_toast"):
@@ -998,7 +1016,11 @@ class VideoPlayer(QWidget):
             self._adaptive_gamma_boost,
             self._adaptive_brightness_boost,
         )
-        msg = "✨ Akıllı İyileştirme: AÇIK" if self._smart_enhance_active else "✨ Akıllı İyileştirme: KAPALI"
+        msg = (
+            "✨ Akıllı İyileştirme: AÇIK (Canlı & Net)"
+            if self._smart_enhance_active
+            else "⚪ Akıllı İyileştirme: KAPALI"
+        )
         self._video_view.show_osd(msg, self._smart_enhance_active)
 
     def _show_speed_menu(self) -> None:

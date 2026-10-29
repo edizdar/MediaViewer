@@ -215,9 +215,9 @@ class AdjustmentsPanel(QWidget):
 
     def apply_smart_enhance(self) -> None:
         """Apply an optimal balance of contrast, brightness, and shadow lift."""
-        self._brightness._slider.setValue(5)
-        self._contrast._slider.setValue(18)
-        self._gamma._slider.setValue(120)
+        self._brightness._slider.setValue(8)
+        self._contrast._slider.setValue(24)
+        self._gamma._slider.setValue(125)
         self._emit_changes()
 
     def has_adjustments(self) -> bool:
