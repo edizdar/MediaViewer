@@ -216,7 +216,7 @@ class CodecWarningBanner(QFrame):
         header = QHBoxLayout()
         header.setSpacing(8)
 
-        self._title_label = QLabel("⚠️ Görüntü Çözülemedi (Siyah Ekran / Eksik Çözücü)")
+        self._title_label = QLabel("⚡ Görüntü Çözülemedi — Dahili Çözücü Hazır")
         self._title_label.setObjectName("bannerTitle")
         header.addWidget(self._title_label)
         header.addStretch()
@@ -231,8 +231,8 @@ class CodecWarningBanner(QFrame):
 
         # Body: Explanation
         self._body_label = QLabel(
-            "Videonun sesi çalıyor ancak görüntüsü çözülemiyor.\n"
-            "Sisteminizde bu video için donanım/yazılım çözücüsü (örn. HEVC / H.265) eksik olabilir."
+            "Videonun sesi çalıyor ancak ekran kartınız bu video profilini doğrudan çizemedi.\n"
+            "Harici hiçbir program yüklemeden, dahili FFmpeg motorumuzla videoyu anında uyumlu MP4 yapabilirsiniz."
         )
         self._body_label.setObjectName("bannerText")
         self._body_label.setWordWrap(True)
@@ -242,16 +242,9 @@ class CodecWarningBanner(QFrame):
         btn_layout = QHBoxLayout()
         btn_layout.setSpacing(10)
 
-        codec_pack_btn = QPushButton("📦 K-Lite Codec Pack İndir")
-        codec_pack_btn.setObjectName("codecBtn")
-        codec_pack_btn.setToolTip("Windows'a tüm formatları sorunsuz oynatan ücretsiz codec paketi kur")
-        codec_pack_btn.setCursor(Qt.CursorShape.PointingHandCursor)
-        codec_pack_btn.clicked.connect(self._open_codec_pack_url)
-        btn_layout.addWidget(codec_pack_btn)
-
-        transcode_btn = QPushButton("🔄 Uyumlu MP4 Formatına Dönüştür")
+        transcode_btn = QPushButton("⚡ Dahili FFmpeg ile Uyumlu Yap ve Oynat")
         transcode_btn.setObjectName("transcodeBtn")
-        transcode_btn.setToolTip("Dahili FFmpeg ile videoyu standart H.264 formatına çevirir")
+        transcode_btn.setToolTip("Dahili FFmpeg motorumuzla videoyu standart H.264 formatına çevirip açar")
         transcode_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         transcode_btn.clicked.connect(self.transcode_requested)
         btn_layout.addWidget(transcode_btn)
@@ -259,18 +252,13 @@ class CodecWarningBanner(QFrame):
         btn_layout.addStretch()
         layout.addLayout(btn_layout)
 
-    def _open_codec_pack_url(self) -> None:
-        QDesktopServices.openUrl(
-            QUrl("https://codecguide.com/download_k-lite_codec_pack_basic.htm")
-        )
-
     def show_banner(self, custom_msg: Optional[str] = None) -> None:
         if custom_msg:
             self._body_label.setText(custom_msg)
         else:
             self._body_label.setText(
-                "Videonun sesi çalıyor ancak görüntüsü çözülemiyor.\n"
-                "Sisteminizde bu video için donanım/yazılım çözücüsü (örn. HEVC / H.265) eksik olabilir."
+                "Videonun sesi çalıyor ancak ekran kartınız bu video profilini doğrudan çizemedi.\n"
+                "Harici hiçbir program yüklemeden, dahili FFmpeg motorumuzla videoyu anında uyumlu MP4 yapabilirsiniz."
             )
         self.show()
         self.raise_()
@@ -925,13 +913,6 @@ class VideoPlayer(QWidget):
 
         transcode_act = menu.addAction("🔄 Uyumlu MP4 Formatına Dönüştür...")
         transcode_act.triggered.connect(self._on_transcode_requested)
-
-        klite_act = menu.addAction("📦 K-Lite Codec Pack İndir...")
-        klite_act.triggered.connect(
-            lambda: QDesktopServices.openUrl(
-                QUrl("https://codecguide.com/download_k-lite_codec_pack_basic.htm")
-            )
-        )
 
         menu.addSeparator()
 

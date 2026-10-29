@@ -9,11 +9,10 @@ import os
 import sys
 from pathlib import Path
 
-# Configure Qt Multimedia FFmpeg hardware/software decoding fallback.
-# Allows graceful fallback to CPU software decoding ('none') when D3D11VA/DXVA2 hardware
-# decoding fails or when Windows HEVC/H.265 Media Foundation MFT is missing.
-os.environ.setdefault("QT_MEDIA_BACKEND", "ffmpeg")
-os.environ.setdefault("QT_FFMPEG_DECODING_HW_DEVICE_TYPES", "d3d11va,dxva2,none")
+# Force Qt Multimedia to use bundled FFmpeg backend and enable graceful hardware->software fallback.
+# This eliminates dependency on external Windows codecs (e.g. missing Windows HEVC extension).
+os.environ["QT_MEDIA_BACKEND"] = "ffmpeg"
+os.environ["QT_FFMPEG_DECODING_HW_DEVICE_TYPES"] = "d3d11va,dxva2,none"
 
 # Windows Taskbar AppUserModelID: Ensures taskbar displays application logo instead of generic window icon
 if sys.platform == "win32":

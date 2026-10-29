@@ -501,10 +501,9 @@ class MainWindow(QMainWindow):
     def _on_playback_error(self, err_msg: str) -> None:
         QMessageBox.warning(
             self,
-            "Video Oynatma Hatası",
-            f"Video oynatılamadı:\n{err_msg}\n\n"
-            "Bu video formatı için gerekli codec sisteminizde eksik olabilir.\n"
-            "(Örn: K-Lite Codec Pack veya HEVC Video Uzantısı gerekebilir.)"
+            "Video Oynatma Uyarısı",
+            f"Video doğrudan oynatılamadı:\n{err_msg}\n\n"
+            "Dahili FFmpeg motorumuz ile videoyu standart MP4 formatına dönüştürüp sorunsuz izleyebilirsiniz.",
         )
 
     def _on_image_loaded(self, width: int, height: int) -> None:
@@ -839,8 +838,8 @@ class MainWindow(QMainWindow):
             QMessageBox.warning(
                 self,
                 "FFmpeg Bulunamadı",
-                "Video dönüştürme işlemi için FFmpeg bileşeni bulunamadı.\n"
-                "Lütfen sisteminize FFmpeg veya K-Lite Codec Pack kurun.",
+                "Video dönüştürme işlemi için dahili FFmpeg bileşeni bulunamadı.\n"
+                "Lütfen uygulamanın dosyalarının eksiksiz olduğundan emin olun.",
             )
             return
 

@@ -22,6 +22,11 @@ a = Analysis(
     noarchive=False,
     optimize=0,
 )
+
+# Exclude windowsmediaplugin.dll to ensure Qt Multimedia exclusively uses the bundled ffmpegmediaplugin.dll,
+# completely avoiding Windows Media Foundation fallback which lacks HEVC/H.265 on clean Windows systems.
+a.binaries = [b for b in a.binaries if 'windowsmediaplugin' not in b[0].lower()]
+
 pyz = PYZ(a.pure)
 
 exe = EXE(
