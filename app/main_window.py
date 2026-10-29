@@ -36,6 +36,12 @@ from app.toolbar import TopToolbar, BottomToolbar
 from app.styles import DARK_THEME
 from app.help_dialog import HelpDialog
 from app.upscale_dialog import UpscaleDialog
+from app.updater import (
+    UpdateNotificationBanner,
+    UpdateDialog,
+    UpdateCheckWorker,
+    UpdateInfo,
+)
 
 
 class WelcomeWidget(QWidget):
@@ -108,6 +114,11 @@ class MainWindow(QMainWindow):
         self._top_toolbar = TopToolbar()
         main_layout.addWidget(self._top_toolbar)
 
+        # Update notification banner (hidden by default)
+        self._update_banner = UpdateNotificationBanner(self)
+        self._update_banner.view_details_requested.connect(self._show_update_dialog)
+        main_layout.addWidget(self._update_banner)
+
         # ── Content area: playlist | stack | adjustments ──
         content_area = QHBoxLayout()
         content_area.setContentsMargins(0, 0, 0, 0)
@@ -168,6 +179,26 @@ class MainWindow(QMainWindow):
 
         # Install application-level event filter for guaranteed key routing
         QApplication.instance().installEventFilter(self)
+
+        # Silent background update check 2.5s after launch (zero UI blocking)
+        QTimer.singleShot(2500, self._start_background_update_check)
+
+    def _start_background_update_check(self) -> None:
+        """Silently query GitHub in background to check if an update is available."""
+        self._update_worker = UpdateCheckWorker(self)
+        self._update_worker.finished_check.connect(self._on_background_update_check_finished)
+        self._update_worker.start()
+
+    def _on_background_update_check_finished(
+        self, success: bool, info: Optional[UpdateInfo], msg: str
+    ) -> None:
+        if success and info and info.is_newer:
+            self._update_banner.show_update(info)
+
+    def _show_update_dialog(self, info: UpdateInfo) -> None:
+        """Display the update changelog modal."""
+        dlg = UpdateDialog(info, self)
+        dlg.exec()
 
     def _connect_signals(self) -> None:
         """Wire up all signals between components."""

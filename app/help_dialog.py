@@ -10,8 +10,10 @@ from PySide6.QtWidgets import (
     QPushButton,
     QLabel,
     QDialogButtonBox,
+    QMessageBox,
 )
 from app import __version__, APP_NAME
+from app.updater import UpdateCheckWorker, UpdateDialog, UpdateInfo
 
 
 class HelpDialog(QDialog):
@@ -127,8 +129,32 @@ class HelpDialog(QDialog):
 
         layout.addWidget(tabs)
 
-        # Bottom Bar with Close Button
+        # Bottom Bar with Update Check & Close Button
         bottom_bar = QHBoxLayout()
+
+        self._check_update_btn = QPushButton("🔄  Güncellemeleri Denetle")
+        self._check_update_btn.setStyleSheet(
+            """
+            QPushButton {
+                background-color: #313244;
+                color: #cdd6f4;
+                border: 1px solid #45475a;
+                border-radius: 6px;
+                padding: 7px 14px;
+                font-size: 12px;
+                font-weight: 500;
+            }
+            QPushButton:hover {
+                background-color: #45475a;
+                color: #89b4fa;
+                border-color: #89b4fa;
+            }
+            """
+        )
+        self._check_update_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        self._check_update_btn.clicked.connect(self._manual_check_update)
+        bottom_bar.addWidget(self._check_update_btn)
+
         bottom_bar.addStretch()
         close_btn = QPushButton("Kapat")
         close_btn.setObjectName("closeBtn")
@@ -136,6 +162,38 @@ class HelpDialog(QDialog):
         close_btn.clicked.connect(self.accept)
         bottom_bar.addWidget(close_btn)
         layout.addLayout(bottom_bar)
+
+    def _manual_check_update(self) -> None:
+        self._check_update_btn.setEnabled(False)
+        self._check_update_btn.setText("Denetleniyor...")
+
+        self._update_worker = UpdateCheckWorker(self)
+        self._update_worker.finished_check.connect(self._on_manual_check_finished)
+        self._update_worker.start()
+
+    def _on_manual_check_finished(
+        self, success: bool, info: UpdateInfo, msg: str
+    ) -> None:
+        self._check_update_btn.setEnabled(True)
+        self._check_update_btn.setText("🔄  Güncellemeleri Denetle")
+
+        if success and info:
+            if info.is_newer:
+                dlg = UpdateDialog(info, self)
+                dlg.exec()
+            else:
+                QMessageBox.information(
+                    self,
+                    "Güncelleme Kontrolü",
+                    f"Tebrikler! Zaten en güncel sürümü (v{__version__}) kullanıyorsunuz.",
+                )
+        else:
+            QMessageBox.warning(
+                self,
+                "Güncelleme Kontrolü",
+                "Güncelleme sunucusuna bağlanılamadı.\n"
+                "Lütfen internet bağlantınızı kontrol edip tekrar deneyin.",
+            )
 
     def _get_shortcuts_html(self) -> str:
         css = """
@@ -266,6 +324,11 @@ class HelpDialog(QDialog):
         <div class="q">❓ Soru: Videodan fotoğraf nasıl yakalayabilirim?</div>
         <div class="a">
             Videoyu oynatırken veya duraklattığınızda klavyenizden <b><code>S</code></b> tuşuna basmanız veya alttaki <b>📸 Kare Yakala</b> butonuna tıklamanız yeterlidir. O anki kare tam video çözünürlüğünde PNG/JPEG olarak kaydedilir.
+        </div>
+
+        <div class="q">❓ Soru: Yeni bir sürüm çıktığında nasıl haberdar olurum?</div>
+        <div class="a">
+            Media Viewer açıldığında arka planda sessizce GitHub sunucumuzu kontrol eder. Yeni bir sürüm yayınlandığında ekranın üst kısmında zarif bir <b>"🎉 Yeni Sürüm Yayınlandı"</b> bildirim çubuğu belirir ve tek tıkla yenilikleri görüp indirmenizi sağlar. Ayrıca bu pencerenin altındaki <b>"🔄 Güncellemeleri Denetle"</b> butonuna basarak da dilediğiniz an manuel kontrol yapabilirsiniz.
         </div>
 
         <div class="q">❓ Soru: Hangi dosya formatları destekleniyor?</div>
