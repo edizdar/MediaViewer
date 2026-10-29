@@ -18,6 +18,7 @@ os.environ.setdefault("QT_FFMPEG_DECODING_HW_DEVICE_TYPES", "d3d11va,dxva2,none"
 from PySide6.QtWidgets import QApplication
 from PySide6.QtCore import Qt
 
+from app import APP_TITLE
 from app.main_window import MainWindow
 
 
@@ -29,7 +30,7 @@ def main() -> None:
     )
 
     app = QApplication(sys.argv)
-    app.setApplicationName("Media Viewer")
+    app.setApplicationName(APP_TITLE)
     app.setOrganizationName("MediaViewer")
 
     # Enable mouse tracking globally for fullscreen toolbar toggle

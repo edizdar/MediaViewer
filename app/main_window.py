@@ -20,6 +20,7 @@ from PySide6.QtWidgets import (
     QApplication,
 )
 
+from app import APP_TITLE
 from app.file_manager import FileManager
 from app.image_viewer import ImageViewer
 from app.video_player import VideoPlayer
@@ -38,7 +39,7 @@ class WelcomeWidget(QWidget):
         layout = QVBoxLayout(self)
         layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
-        title = QLabel("📷  Media Viewer")
+        title = QLabel(f"📷  {APP_TITLE}")
         title.setObjectName("welcomeLabel")
         title.setAlignment(Qt.AlignmentFlag.AlignCenter)
         title.setStyleSheet("font-size: 28px; font-weight: bold; color: #89b4fa;")
@@ -60,7 +61,7 @@ class MainWindow(QMainWindow):
     def __init__(self) -> None:
         super().__init__()
 
-        self.setWindowTitle("Media Viewer")
+        self.setWindowTitle(APP_TITLE)
         self.setMinimumSize(800, 600)
         self.resize(1200, 800)
 
@@ -467,7 +468,7 @@ class MainWindow(QMainWindow):
         self._stack.setCurrentIndex(1)
         self._bottom_toolbar.show_image_controls()
         self._adjustments_panel.set_save_visible(True)
-        self.setWindowTitle(f"{path.name} — Media Viewer")
+        self.setWindowTitle(f"{path.name} — {APP_TITLE}")
 
         if self._adjustments_panel.has_adjustments():
             self._adjustments_panel.reset()
@@ -479,7 +480,7 @@ class MainWindow(QMainWindow):
         self._adjustments_panel.set_save_visible(False)
         self._current_image_size = None
         self._bottom_toolbar.set_file_info(self._file_manager.get_file_size_str(path))
-        self.setWindowTitle(f"{path.name} — Media Viewer")
+        self.setWindowTitle(f"{path.name} — {APP_TITLE}")
 
         if self._adjustments_panel.has_adjustments():
             self._adjustments_panel.reset()
@@ -937,7 +938,7 @@ class MainWindow(QMainWindow):
             self._stack.setCurrentIndex(0)
             self._top_toolbar.clear()
             self._bottom_toolbar.clear()
-            self.setWindowTitle("Media Viewer")
+            self.setWindowTitle(APP_TITLE)
 
     # ── Drag & Drop ─────────────────────────────────────────────────────
 

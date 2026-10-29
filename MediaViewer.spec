@@ -1,5 +1,10 @@
 # -*- mode: python ; coding: utf-8 -*-
+import sys
+from pathlib import Path
 from PyInstaller.utils.hooks import collect_data_files
+
+sys.path.insert(0, str(Path('.').resolve()))
+from app import __version__
 
 ffmpeg_datas = collect_data_files('imageio_ffmpeg')
 
@@ -24,7 +29,7 @@ exe = EXE(
     a.binaries,
     a.datas,
     [],
-    name='MediaViewer',
+    name=f'MediaViewer_v{__version__}',
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
