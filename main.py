@@ -15,10 +15,18 @@ from pathlib import Path
 os.environ.setdefault("QT_MEDIA_BACKEND", "ffmpeg")
 os.environ.setdefault("QT_FFMPEG_DECODING_HW_DEVICE_TYPES", "d3d11va,dxva2,none")
 
+# Windows Taskbar AppUserModelID: Ensures taskbar displays application logo instead of generic window icon
+if sys.platform == "win32":
+    try:
+        import ctypes
+        ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID("eroldizdar.mediaviewer.app.v1")
+    except Exception:
+        pass
+
 from PySide6.QtWidgets import QApplication
 from PySide6.QtCore import Qt
 
-from app import APP_TITLE
+from app import APP_TITLE, get_app_icon
 from app.main_window import MainWindow
 
 
@@ -32,6 +40,11 @@ def main() -> None:
     app = QApplication(sys.argv)
     app.setApplicationName(APP_TITLE)
     app.setOrganizationName("MediaViewer")
+
+    # Set application & taskbar icon
+    app_icon = get_app_icon()
+    if not app_icon.isNull():
+        app.setWindowIcon(app_icon)
 
     # Enable mouse tracking globally for fullscreen toolbar toggle
     app.setStyleSheet("")  # Ensure stylesheet system is initialized

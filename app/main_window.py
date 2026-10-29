@@ -20,7 +20,7 @@ from PySide6.QtWidgets import (
     QApplication,
 )
 
-from app import APP_TITLE
+from app import APP_TITLE, get_app_icon
 from app.file_manager import FileManager
 from app.image_viewer import ImageViewer
 from app.video_player import VideoPlayer
@@ -62,6 +62,10 @@ class MainWindow(QMainWindow):
         super().__init__()
 
         self.setWindowTitle(APP_TITLE)
+        app_icon = get_app_icon()
+        if not app_icon.isNull():
+            self.setWindowIcon(app_icon)
+
         self.setMinimumSize(800, 600)
         self.resize(1200, 800)
 

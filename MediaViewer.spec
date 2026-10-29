@@ -7,12 +7,13 @@ sys.path.insert(0, str(Path('.').resolve()))
 from app import __version__
 
 ffmpeg_datas = collect_data_files('imageio_ffmpeg')
+all_datas = ffmpeg_datas + [('assets', 'assets')]
 
 a = Analysis(
     ['main.py'],
     pathex=[],
     binaries=[],
-    datas=ffmpeg_datas,
+    datas=all_datas,
     hiddenimports=['PySide6.QtMultimedia', 'PySide6.QtMultimediaWidgets', 'numpy', 'imageio_ffmpeg'],
     hookspath=[],
     hooksconfig={},
@@ -30,6 +31,7 @@ exe = EXE(
     a.datas,
     [],
     name=f'MediaViewer_v{__version__}',
+    icon='assets/icon.ico',
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
