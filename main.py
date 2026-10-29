@@ -9,10 +9,11 @@ import os
 import sys
 from pathlib import Path
 
-# Force Qt Multimedia to use bundled FFmpeg backend and enable graceful hardware->software fallback.
-# This eliminates dependency on external Windows codecs (e.g. missing Windows HEVC extension).
-os.environ["QT_MEDIA_BACKEND"] = "ffmpeg"
-os.environ["QT_FFMPEG_DECODING_HW_DEVICE_TYPES"] = "d3d11va,dxva2,none"
+# Prefer Windows Media Foundation (WMF) backend on Windows for 100% parity with Windows Media Player
+# and robust, glitch-free playback of MP4, M4V (GoPro Quik, iPhone), MOV, WMV, AVI.
+# Both windowsmediaplugin and ffmpegmediaplugin are bundled in the application.
+if "QT_MEDIA_BACKEND" not in os.environ and sys.platform == "win32":
+    os.environ["QT_MEDIA_BACKEND"] = "windows"
 
 # Windows Taskbar AppUserModelID: Ensures taskbar displays application logo instead of generic window icon
 if sys.platform == "win32":

@@ -332,6 +332,7 @@ class ZoomableVideoView(QGraphicsView):
     zoom_changed = Signal(float)
     crop_rect_changed = Signal(QRectF)
     transcode_requested = Signal()
+    native_size_ready = Signal(QSizeF)
 
     ZOOM_MIN = 0.5
     ZOOM_MAX = 10.0
@@ -435,6 +436,8 @@ class ZoomableVideoView(QGraphicsView):
             self._scene.setSceneRect(0, 0, size.width(), size.height())
             self.fitInView(self._video_item, Qt.AspectRatioMode.KeepAspectRatio)
             self.centerOn(self._video_item)
+            self.hide_codec_banner()
+            self.native_size_ready.emit(size)
 
     def _on_video_frame_changed(self, frame: QVideoFrame) -> None:
         if frame.isValid():
@@ -830,6 +833,7 @@ class VideoPlayer(QWidget):
 
         # Video view signals
         self._video_view.crop_rect_changed.connect(self._on_video_crop_rect_changed)
+        self._video_view.native_size_ready.connect(self._on_native_size_ready)
 
         self._player.errorOccurred.connect(self._on_player_error)
         self._player.mediaStatusChanged.connect(self._on_media_status_changed)
@@ -848,6 +852,12 @@ class VideoPlayer(QWidget):
         if not self._audio_attached:
             self._audio_attached = True
             self._player.setAudioOutput(self._audio_output)
+
+    def _on_native_size_ready(self, size: QSizeF) -> None:
+        if size.isValid() and size.width() > 0:
+            self._has_video_frame = True
+            self._codec_check_timer.stop()
+            self._video_view.hide_codec_banner()
 
     def _on_first_video_frame(self, frame: QVideoFrame) -> None:
         if frame.isValid() and frame.size().width() > 0:
@@ -942,9 +952,20 @@ class VideoPlayer(QWidget):
 
     def _check_codec_status(self) -> None:
         if not self._has_video_frame and self._current_path:
+            item_size = self._video_view.video_item.size()
+            native_size = self._video_view.video_item.nativeSize()
+            has_dimensions = (
+                (item_size.isValid() and item_size.width() > 0)
+                or (native_size.isValid() and native_size.width() > 0)
+            )
+            if has_dimensions:
+                self._has_video_frame = True
+                self._video_view.hide_codec_banner()
+                return
+
             if (
                 self._player.playbackState() == QMediaPlayer.PlaybackState.PlayingState
-                or self._player.duration() > 0
+                and (self._player.position() > 2500 or self._player.duration() > 0)
             ):
                 self._video_view.show_codec_banner()
 
@@ -1171,15 +1192,13 @@ class VideoPlayer(QWidget):
         self._adaptive_gamma_boost = 0.0
         self._adaptive_brightness_boost = 0
         self._video_view.hide_codec_banner()
-        self._codec_check_timer.start(1500)
+        self._codec_check_timer.start(3500)
         if self._smart_enhance_active:
             self._video_view.set_smart_enhance(True)
 
         self._player.stop()
-        # Temporarily detach audio output so that FFmpeg doesn't drop the initial video
-        # frame due to A/V clock synchronization on low-framerate/still-photo MP4s (e.g. WhatsApp status).
-        self._player.setAudioOutput(None)
-        self._audio_attached = False
+        self._player.setAudioOutput(self._audio_output)
+        self._audio_attached = True
 
         url = QUrl.fromLocalFile(str(self._current_path))
         self._player.setSource(url)
@@ -1189,9 +1208,6 @@ class VideoPlayer(QWidget):
         self._video_view.fit_video()
         self._trim_panel.reset_for_video(0)
         self._player.play()
-
-        # Fallback: connect audio after 600ms if no video frame arrives (e.g. audio-only files)
-        QTimer.singleShot(600, self._attach_audio)
 
     def play_pause(self) -> None:
         self._attach_audio()
@@ -1257,13 +1273,23 @@ class VideoPlayer(QWidget):
             self._player.pause()
             self._is_previewing_trim = False
 
-        # Detect black screen (audio playing for > 1.2s with no video frame decoded)
+        # Detect black screen (audio playing for > 3.0s with no video frame decoded)
         if (
-            position > 1200
+            position > 3000
             and not self._has_video_frame
             and not self._video_view.is_codec_banner_visible
         ):
-            self._video_view.show_codec_banner()
+            item_size = self._video_view.video_item.size()
+            native_size = self._video_view.video_item.nativeSize()
+            has_dimensions = (
+                (item_size.isValid() and item_size.width() > 0)
+                or (native_size.isValid() and native_size.width() > 0)
+            )
+            if not has_dimensions:
+                self._video_view.show_codec_banner()
+            else:
+                self._has_video_frame = True
+                self._video_view.hide_codec_banner()
 
         self._trim_panel.update_state(position, duration)
 
