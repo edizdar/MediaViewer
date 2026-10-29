@@ -25,6 +25,7 @@ A fast, lightweight, and modern desktop photo and video viewer for Windows. 100%
 - 🖥️ **Sıfır Dikkat Dağıtıcı Tam Ekran:** Tam ekranda butonlar tamamen gizlidir. Fare sadece sağ üst köşeye (`✕ Çıkış`) veya kenarlara (`❮ ❯`) gittiğinde görünür.
 - 🔍 **Merkez Odaklı Akıllı Zoom:** Ekran merkezinden simetrik yakınlaştırma/uzaklaştırma. Küçüldüğünde asla kenarda veya solda kalmaz, daima tam ortadadır.
 - 🎬 **Videolarda Zoom & Klavye Gezinmesi:** Oynatılan videoyu fare tekerleğiyle yakınlaştırın ve görünmeyen yerleri yön tuşlarıyla (`← → ↑ ↓`) kaydırarak inceleyin.
+- ✨ **Akıllı Video Kalite İyileştirme (`E`):** Tek tuşla canlı sahne parlaklık analizi, solgun renkleri canlandırma, çamurlu siyahları derinleştirme ve gölge detaylarını kurtarma. Bulanık veya kumlu videoları FFmpeg `unsharp` ve `hqdn3d` ile iyileştirerek kaydetme.
 - ✂️ **Hassas Video Kırpma ve Alan Kesme (`T` / `C`):** Kayıpsız hızlı kesme, milisaniye hassasiyetli In/Out işaretçileri ve video alanını serbest veya sabit oranlarda (16:9, 9:16 dikey vb.) kırpma.
 - 🛠️ **Akıllı Çözücü & Siyah Ekran Koruması:** HEVC/H.265 gibi eksik codec durumlarında uyarı bildirimi ve dahili FFmpeg ile tek tıkla standart MP4 formatına dönüştürme.
 - 🎨 **Dahili Işık / Renk Ayarları (`Ctrl + J`):** Karanlık fotoğrafları ve videoları tek tıkla aydınlatmak için Parlaklık, Kontrast ve Gamma ayarları.
@@ -54,6 +55,7 @@ A fast, lightweight, and modern desktop photo and video viewer for Windows. 100%
 | **`Ctrl + L`** | Oynatma Listesi Paneli | Playlist Panel |
 | **`T`** | Video Kırpma / Kesme Modu | Video Trim & Cut Mode |
 | **`C`** | Fotoğraf / Video Alan Kırpma | Crop Area Selection |
+| **`E`** | Akıllı Kalite İyileştirme (Aç/Kapat) | Smart Video / Image Enhancement |
 | **`[` / `]`** | Video Oynatma Hızı Azalt / Artır | Decrease / Increase Video Speed |
 | **`Ctrl + +` / `Ctrl + -`** | Yakınlaştır / Uzaklaştır | Zoom In / Zoom Out |
 | **`Ctrl + 0`** | Orijinal Boyut (%100) | Original Size (100%) |

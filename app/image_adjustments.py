@@ -138,6 +138,32 @@ class AdjustmentsPanel(QWidget):
         self._gamma.value_changed.connect(self._schedule_update)
         layout.addWidget(self._gamma)
 
+        # ── Smart Auto Enhance Button ──
+        self._smart_btn = QPushButton("✨  Akıllı Ayarla")
+        self._smart_btn.setToolTip("İdeal kontrast, parlaklık ve gölge detayını otomatik uygular")
+        self._smart_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        self._smart_btn.setStyleSheet(
+            """
+            QPushButton {
+                background-color: #313244;
+                color: #89b4fa;
+                border: 1px solid #45475a;
+                border-radius: 5px;
+                padding: 6px;
+                font-size: 12px;
+                font-weight: bold;
+                margin-top: 8px;
+            }
+            QPushButton:hover {
+                background-color: #45475a;
+                color: #b4befe;
+                border-color: #89b4fa;
+            }
+            """
+        )
+        self._smart_btn.clicked.connect(self.apply_smart_enhance)
+        layout.addWidget(self._smart_btn)
+
         layout.addStretch()
 
         # ── Buttons row: Reset & Save ──
@@ -185,6 +211,13 @@ class AdjustmentsPanel(QWidget):
         self._brightness.blockSignals(False)
         self._contrast.blockSignals(False)
         self._gamma.blockSignals(False)
+        self._emit_changes()
+
+    def apply_smart_enhance(self) -> None:
+        """Apply an optimal balance of contrast, brightness, and shadow lift."""
+        self._brightness._slider.setValue(5)
+        self._contrast._slider.setValue(18)
+        self._gamma._slider.setValue(120)
         self._emit_changes()
 
     def has_adjustments(self) -> bool:

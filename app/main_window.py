@@ -24,7 +24,12 @@ from app import APP_TITLE, get_app_icon
 from app.file_manager import FileManager
 from app.image_viewer import ImageViewer
 from app.video_player import VideoPlayer
-from app.video_trim import get_ffmpeg_executable, VideoTrimWorker, VideoTranscodeWorker
+from app.video_trim import (
+    get_ffmpeg_executable,
+    VideoTrimWorker,
+    VideoTranscodeWorker,
+    VideoEnhanceWorker,
+)
 from app.image_adjustments import AdjustmentsPanel
 from app.playlist import PlaylistPanel
 from app.toolbar import TopToolbar, BottomToolbar
@@ -193,6 +198,7 @@ class MainWindow(QMainWindow):
         self._video_player.playback_error.connect(self._on_playback_error)
         self._video_player.trim_save_requested.connect(self._execute_video_trim)
         self._video_player.transcode_requested.connect(self._convert_video_to_compatible)
+        self._video_player.enhance_save_requested.connect(self._execute_video_enhance)
 
         # Adjustments panel
         self._adjustments_panel.adjustments_changed.connect(
@@ -222,6 +228,7 @@ class MainWindow(QMainWindow):
             "Shift+R": self._image_viewer.rotate_ccw,
             "C": self._toggle_image_crop,
             "T": self._toggle_video_trim,
+            "E": self._on_enhance_shortcut,
             "Delete": self._delete_current_file,
             "Ctrl+J": self._toggle_adjustments,
             "Ctrl+L": self._toggle_playlist,
@@ -903,6 +910,93 @@ class MainWindow(QMainWindow):
         self._transcode_worker.finished.connect(on_transcode_finished)
         self._transcode_worker.start()
 
+    def _on_enhance_shortcut(self) -> None:
+        """Toggle smart enhance in video mode or apply smart adjustment in image mode."""
+        if self._stack.currentIndex() == 2:
+            self._video_player.toggle_smart_enhance()
+        elif self._stack.currentIndex() == 1:
+            self._adjustments_panel.apply_smart_enhance()
+            if self._adjustments_panel.isHidden():
+                self._toggle_adjustments()
+
+    def _execute_video_enhance(self, video_path: Path) -> None:
+        """Enhance video quality, denoise, and sharpen via FFmpeg in a background thread."""
+        ffmpeg_exe = get_ffmpeg_executable()
+        if not ffmpeg_exe:
+            QMessageBox.warning(
+                self,
+                "FFmpeg Bulunamadı",
+                "Video iyileştirme işlemi için FFmpeg bileşeni bulunamadı.\n"
+                "Lütfen FFmpeg'in kurulu olduğundan emin olun.",
+            )
+            return
+
+        default_name = f"{video_path.stem}_iyilestirilmis.mp4"
+        default_path = str(video_path.parent / default_name)
+
+        save_path, _ = QFileDialog.getSaveFileName(
+            self,
+            "İyileştirilmiş Videoyu Kaydet",
+            default_path,
+            "MP4 Video (*.mp4);;Tüm Dosyalar (*)",
+        )
+        if not save_path:
+            return
+
+        out_path = Path(save_path)
+        if out_path.resolve() == video_path.resolve():
+            QMessageBox.warning(
+                self,
+                "Geçersiz Dosya Adı",
+                "Orijinal dosyanın üzerine doğrudan yazılamaz.\nLütfen farklı bir dosya adı seçin.",
+            )
+            return
+
+        progress = QProgressDialog(
+            "Video parazitleri temizleniyor, kenarlar netleştiriliyor ve renkler canlandırılıyor...\nLütfen bekleyin.",
+            None,
+            0,
+            0,
+            self,
+        )
+        progress.setWindowTitle("Video İyileştiriliyor")
+        progress.setWindowModality(Qt.WindowModality.WindowModal)
+        progress.setMinimumDuration(0)
+        progress.setValue(0)
+        progress.show()
+
+        self._video_player.pause()
+
+        self._enhance_worker = VideoEnhanceWorker(
+            ffmpeg_exe=ffmpeg_exe,
+            input_path=video_path,
+            output_path=out_path,
+            parent=self,
+        )
+
+        def on_enhance_finished(success: bool, msg: str, final_path: str):
+            progress.close()
+            if success:
+                reply = QMessageBox.question(
+                    self,
+                    "İşlem Tamamlandı",
+                    f"Video kalitesi başarıyla artırıldı ve kaydedildi:\n{out_path.name}\n\n"
+                    "İyileştirilmiş videoyu şimdi açmak ister misiniz?",
+                    QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+                    QMessageBox.StandardButton.Yes,
+                )
+                if reply == QMessageBox.StandardButton.Yes:
+                    self.open_file(final_path)
+            else:
+                QMessageBox.critical(
+                    self,
+                    "İşlem Hatası",
+                    f"Video iyileştirilemedi:\n{msg}",
+                )
+
+        self._enhance_worker.finished.connect(on_enhance_finished)
+        self._enhance_worker.start()
+
     # ── Delete ──────────────────────────────────────────────────────────
 
     def _delete_current_file(self) -> None:
@@ -977,4 +1071,11 @@ class MainWindow(QMainWindow):
         ):
             self._transcode_worker.terminate()
             self._transcode_worker.wait(1000)
+        if (
+            hasattr(self, "_enhance_worker")
+            and self._enhance_worker
+            and self._enhance_worker.isRunning()
+        ):
+            self._enhance_worker.terminate()
+            self._enhance_worker.wait(1000)
         super().closeEvent(event)

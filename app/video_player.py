@@ -28,7 +28,7 @@ from app.image_crop import CropOverlayItem
 
 class VideoAdjustmentOverlay(QGraphicsItem):
     """Overlay item that renders real-time brightness, contrast, and gamma adjustments
-    over the video in ZoomableVideoView.
+    over the video in ZoomableVideoView, with smart quality enhancement support.
     """
 
     def __init__(self, target_item: QGraphicsVideoItem, parent=None) -> None:
@@ -38,6 +38,9 @@ class VideoAdjustmentOverlay(QGraphicsItem):
         self._brightness: int = 0
         self._contrast: int = 0
         self._gamma: float = 1.0
+        self._smart_enhance: bool = False
+        self._adaptive_gamma_boost: float = 0.0
+        self._adaptive_brightness_boost: int = 0
 
     def boundingRect(self) -> QRectF:
         return self._target.boundingRect()
@@ -55,58 +58,85 @@ class VideoAdjustmentOverlay(QGraphicsItem):
         self._gamma = gamma
         self.update()
 
+    def set_smart_enhance(
+        self, enabled: bool, adaptive_gamma: float = 0.0, adaptive_brightness: int = 0
+    ) -> None:
+        if (
+            self._smart_enhance == enabled
+            and abs(self._adaptive_gamma_boost - adaptive_gamma) < 0.01
+            and self._adaptive_brightness_boost == adaptive_brightness
+        ):
+            return
+        self.prepareGeometryChange()
+        self._smart_enhance = enabled
+        self._adaptive_gamma_boost = adaptive_gamma
+        self._adaptive_brightness_boost = adaptive_brightness
+        self.update()
+
     def paint(self, painter: QPainter, option, widget=None) -> None:
         rect = self.boundingRect()
         if rect.isEmpty():
             return
 
+        eff_brightness = self._brightness
+        eff_contrast = self._contrast
+        eff_gamma = self._gamma
+
+        if self._smart_enhance:
+            eff_brightness += 4 + self._adaptive_brightness_boost
+            eff_contrast += 18
+            eff_gamma *= (1.20 + self._adaptive_gamma_boost)
+
         # Fast path: No adjustments active
-        if self._brightness == 0 and self._contrast == 0 and abs(self._gamma - 1.0) < 0.01:
+        if (
+            eff_brightness == 0
+            and eff_contrast == 0
+            and abs(eff_gamma - 1.0) < 0.01
+            and not self._smart_enhance
+        ):
             return
 
         painter.save()
 
         # ── 1. Brightness (Exposure Gain / Attenuation) ──
-        if self._brightness > 0:
-            # ColorDodge multiplies shadow and midtone luminance proportionally,
-            # acting like camera exposure gain without adding a milky gray fog.
-            val = int((self._brightness / 100.0) * 165)
+        if eff_brightness > 0:
+            val = int((eff_brightness / 100.0) * 165)
             painter.setCompositionMode(QPainter.CompositionMode.CompositionMode_ColorDodge)
             painter.fillRect(rect, QColor(val, val, val))
-        elif self._brightness < 0:
-            # Multiply dims all levels linearly and cleanly without black fog.
-            factor = 1.0 - (-self._brightness / 100.0) * 0.85
+        elif eff_brightness < 0:
+            factor = 1.0 - (-eff_brightness / 100.0) * 0.85
             val = max(10, min(255, int(255 * factor)))
             painter.setCompositionMode(QPainter.CompositionMode.CompositionMode_Multiply)
             painter.fillRect(rect, QColor(val, val, val))
 
         # ── 2. Contrast ──
-        if self._contrast < 0:
-            # Lower contrast by blending towards neutral 50% gray
-            alpha = int((-self._contrast / 100.0) * 160)
+        if eff_contrast < 0:
+            alpha = int((-eff_contrast / 100.0) * 160)
             painter.setCompositionMode(QPainter.CompositionMode.CompositionMode_SourceOver)
             painter.fillRect(rect, QColor(128, 128, 128, alpha))
-        elif self._contrast > 0:
-            # Expand dynamic range: deepen shadows via Multiply, expand highlights via ColorDodge
-            val_mult = 255 - int((self._contrast / 100.0) * 50)
+        elif eff_contrast > 0:
+            val_mult = 255 - int((eff_contrast / 100.0) * 50)
             painter.setCompositionMode(QPainter.CompositionMode.CompositionMode_Multiply)
             painter.fillRect(rect, QColor(val_mult, val_mult, val_mult))
-            val_dodge = int((self._contrast / 100.0) * 65)
+            val_dodge = int((eff_contrast / 100.0) * 65)
             painter.setCompositionMode(QPainter.CompositionMode.CompositionMode_ColorDodge)
             painter.fillRect(rect, QColor(val_dodge, val_dodge, val_dodge))
 
         # ── 3. Gamma (Midtone Shadow Curve) ──
-        if self._gamma > 1.01:
-            # Gamma boost: SoftLight with white lifts dark shadows and midtones cleanly,
-            # revealing details in dark scenes without blowing out highlights.
-            alpha = int(min((self._gamma - 1.0) / 2.0, 1.0) * 220)
+        if eff_gamma > 1.01:
+            alpha = int(min((eff_gamma - 1.0) / 2.0, 1.0) * 220)
             painter.setCompositionMode(QPainter.CompositionMode.CompositionMode_SoftLight)
             painter.fillRect(rect, QColor(255, 255, 255, alpha))
-        elif self._gamma < 0.99:
-            # Gamma reduction: SoftLight with black pulls down midtones smoothly.
-            alpha = int(min((1.0 - self._gamma) / 0.9, 1.0) * 220)
+        elif eff_gamma < 0.99:
+            alpha = int(min((1.0 - eff_gamma) / 0.9, 1.0) * 220)
             painter.setCompositionMode(QPainter.CompositionMode.CompositionMode_SoftLight)
             painter.fillRect(rect, QColor(0, 0, 0, alpha))
+
+        # ── 4. Smart Enhance Micro-Vibrancy Boost ──
+        if self._smart_enhance:
+            # Soft warm-vibrant glow lifts muted colors and adds natural vitality
+            painter.setCompositionMode(QPainter.CompositionMode.CompositionMode_SoftLight)
+            painter.fillRect(rect, QColor(255, 240, 215, 30))
 
         painter.restore()
 
@@ -246,6 +276,47 @@ class CodecWarningBanner(QFrame):
         self.raise_()
 
 
+class VideoOSDToast(QLabel):
+    """Temporary on-screen display toast (e.g. '✨ Akıllı İyileştirme: AÇIK')."""
+
+    def __init__(self, parent=None) -> None:
+        super().__init__(parent)
+        self.setObjectName("videoOSDToast")
+        self.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.hide()
+        self._timer = QTimer(self)
+        self._timer.setSingleShot(True)
+        self._timer.setInterval(1200)
+        self._timer.timeout.connect(self.hide)
+
+    def show_message(self, text: str, is_active: bool = True) -> None:
+        self.setText(text)
+        color = "#89b4fa" if is_active else "#a6adc8"
+        border_col = "#89b4fa" if is_active else "#45475a"
+        self.setStyleSheet(
+            f"""
+            QLabel#videoOSDToast {{
+                background-color: rgba(24, 24, 37, 0.92);
+                color: {color};
+                font-size: 13px;
+                font-weight: bold;
+                border: 1.5px solid {border_col};
+                border-radius: 16px;
+                padding: 6px 18px;
+            }}
+            """
+        )
+        self.adjustSize()
+        if self.parent():
+            p = self.parent()
+            x = (p.width() - self.width()) // 2
+            y = 26
+            self.move(x, y)
+        self.show()
+        self.raise_()
+        self._timer.start()
+
+
 class ZoomableVideoView(QGraphicsView):
     """A QGraphicsView that displays video via QGraphicsVideoItem with
     mouse-wheel zoom and drag-to-pan support.
@@ -301,6 +372,9 @@ class ZoomableVideoView(QGraphicsView):
         # Floating codec / black-screen notification banner
         self._codec_banner = CodecWarningBanner(self.viewport())
         self._codec_banner.transcode_requested.connect(self.transcode_requested)
+
+        # OSD Toast for mode toggles
+        self._osd_toast = VideoOSDToast(self.viewport())
 
     @property
     def video_item(self) -> QGraphicsVideoItem:
@@ -503,9 +577,21 @@ class ZoomableVideoView(QGraphicsView):
             bx = max(10, (vw - bw) // 2)
             self._codec_banner.setGeometry(bx, 20, bw, bh)
 
+    def set_smart_enhance(
+        self, enabled: bool, adaptive_gamma: float = 0.0, adaptive_brightness: int = 0
+    ) -> None:
+        self._overlay.set_smart_enhance(enabled, adaptive_gamma, adaptive_brightness)
+
+    def show_osd(self, text: str, is_active: bool = True) -> None:
+        if hasattr(self, "_osd_toast"):
+            self._osd_toast.show_message(text, is_active)
+
     def resizeEvent(self, event) -> None:
         super().resizeEvent(event)
         self._update_banner_geometry()
+        if hasattr(self, "_osd_toast") and self._osd_toast.isVisible():
+            x = (self.viewport().width() - self._osd_toast.width()) // 2
+            self._osd_toast.move(x, 26)
         if abs(self._zoom - 1.0) < 0.02:
             self.fit_video()
 
@@ -524,6 +610,7 @@ class VideoPlayer(QWidget):
     speed_changed = Signal(float)  # Emitted when playback speed changes
     trim_save_requested = Signal(Path, float, float, object)  # (path, start_sec, end_sec, crop_box)
     transcode_requested = Signal(Path)  # Emitted to convert video to compatible H.264 MP4
+    enhance_save_requested = Signal(Path)  # Emitted to enhance and sharpen video via FFmpeg
 
     SPEED_PRESETS = [0.25, 0.5, 0.75, 1.0, 1.25, 1.5, 1.75, 2.0]
 
@@ -534,6 +621,12 @@ class VideoPlayer(QWidget):
         self._is_previewing_trim: bool = False
         self._preview_end_ms: int = 0
         self._has_video_frame: bool = False
+
+        # Smart enhance state
+        self._smart_enhance_active: bool = False
+        self._adaptive_gamma_boost: float = 0.0
+        self._adaptive_brightness_boost: int = 0
+        self._luminance_analyzed: bool = False
 
         # Codec / black screen check timer
         self._codec_check_timer = QTimer(self)
@@ -651,6 +744,15 @@ class VideoPlayer(QWidget):
         self._trim_btn.clicked.connect(self.toggle_trim)
         bottom_row.addWidget(self._trim_btn)
 
+        # Smart Enhance button
+        self._smart_enhance_btn = QPushButton("✨ İyileştir")
+        self._smart_enhance_btn.setObjectName("speedBtn")
+        self._smart_enhance_btn.setToolTip("Akıllı Kalite İyileştirme (E)")
+        self._smart_enhance_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        self._smart_enhance_btn.setFixedHeight(30)
+        self._smart_enhance_btn.clicked.connect(self.toggle_smart_enhance)
+        bottom_row.addWidget(self._smart_enhance_btn)
+
         # Playback speed button
         self._speed_btn = QPushButton("1.0x")
         self._speed_btn.setObjectName("speedBtn")
@@ -736,10 +838,54 @@ class VideoPlayer(QWidget):
             self._codec_check_timer.stop()
             self._video_view.hide_codec_banner()
             self._attach_audio()
+            self._analyze_video_luminance(frame)
+
+    def _analyze_video_luminance(self, frame: QVideoFrame) -> None:
+        if self._luminance_analyzed:
+            return
+        if not frame.isValid():
+            return
+        try:
+            qimg = frame.toImage()
+            if qimg.isNull():
+                return
+            thumb = qimg.scaled(
+                32, 32, Qt.AspectRatioMode.IgnoreAspectRatio, Qt.TransformationMode.FastTransformation
+            )
+            total_lum = 0.0
+            for y in range(0, 32, 2):
+                for x in range(0, 32, 2):
+                    c = thumb.pixelColor(x, y)
+                    lum = 0.2126 * c.red() + 0.7152 * c.green() + 0.0722 * c.blue()
+                    total_lum += lum
+            avg_lum = total_lum / 256.0
+            self._luminance_analyzed = True
+
+            # Dark video (< 75): extra shadow lifting
+            if avg_lum < 75:
+                self._adaptive_gamma_boost = 0.15
+                self._adaptive_brightness_boost = 6
+            elif avg_lum > 170:
+                self._adaptive_gamma_boost = -0.08
+                self._adaptive_brightness_boost = -3
+            else:
+                self._adaptive_gamma_boost = 0.0
+                self._adaptive_brightness_boost = 0
+
+            if self._smart_enhance_active:
+                self._video_view.set_smart_enhance(
+                    True, self._adaptive_gamma_boost, self._adaptive_brightness_boost
+                )
+        except Exception:
+            pass
 
     def _on_transcode_requested(self) -> None:
         if self._current_path:
             self.transcode_requested.emit(self._current_path)
+
+    def _on_enhance_save_requested(self) -> None:
+        if self._current_path:
+            self.enhance_save_requested.emit(self._current_path)
 
     def _check_codec_status(self) -> None:
         if not self._has_video_frame and self._current_path:
@@ -762,6 +908,18 @@ class VideoPlayer(QWidget):
 
         trim_act = menu.addAction("✂ Videoyu Kırp (T)")
         trim_act.triggered.connect(self.toggle_trim)
+
+        menu.addSeparator()
+
+        # Smart enhance live toggle
+        smart_act = menu.addAction("✨ Akıllı Kalite İyileştirme (E)")
+        smart_act.setCheckable(True)
+        smart_act.setChecked(self._smart_enhance_active)
+        smart_act.triggered.connect(self.toggle_smart_enhance)
+
+        # Enhance export with FFmpeg
+        enhance_save_act = menu.addAction("🎬 Videoyu İyileştirerek Kaydet (Netleştirme + Parazit Giderme)...")
+        enhance_save_act.triggered.connect(self._on_enhance_save_requested)
 
         menu.addSeparator()
 
@@ -834,6 +992,33 @@ class VideoPlayer(QWidget):
 
     def reset_speed(self) -> None:
         self.set_playback_rate(1.0)
+
+    # ── Smart Quality Enhancement API ───────────────────────────────────
+
+    @property
+    def is_smart_enhanced(self) -> bool:
+        return self._smart_enhance_active
+
+    def toggle_smart_enhance(self) -> None:
+        """Toggle real-time smart video quality enhancement."""
+        self._smart_enhance_active = not self._smart_enhance_active
+        self._update_smart_enhance()
+
+    def set_smart_enhance(self, enabled: bool) -> None:
+        self._smart_enhance_active = enabled
+        self._update_smart_enhance()
+
+    def _update_smart_enhance(self) -> None:
+        self._smart_enhance_btn.setProperty("active", "true" if self._smart_enhance_active else "false")
+        self._smart_enhance_btn.style().unpolish(self._smart_enhance_btn)
+        self._smart_enhance_btn.style().polish(self._smart_enhance_btn)
+        self._video_view.set_smart_enhance(
+            self._smart_enhance_active,
+            self._adaptive_gamma_boost,
+            self._adaptive_brightness_boost,
+        )
+        msg = "✨ Akıllı İyileştirme: AÇIK" if self._smart_enhance_active else "✨ Akıllı İyileştirme: KAPALI"
+        self._video_view.show_osd(msg, self._smart_enhance_active)
 
     def _show_speed_menu(self) -> None:
         menu = QMenu(self)
@@ -929,8 +1114,13 @@ class VideoPlayer(QWidget):
     def load_video(self, path: str | Path) -> None:
         self._current_path = Path(path).resolve()
         self._has_video_frame = False
+        self._luminance_analyzed = False
+        self._adaptive_gamma_boost = 0.0
+        self._adaptive_brightness_boost = 0
         self._video_view.hide_codec_banner()
         self._codec_check_timer.start(1500)
+        if self._smart_enhance_active:
+            self._video_view.set_smart_enhance(True)
 
         self._player.stop()
         # Temporarily detach audio output so that FFmpeg doesn't drop the initial video
@@ -978,6 +1168,7 @@ class VideoPlayer(QWidget):
     def cleanup(self) -> None:
         self._codec_check_timer.stop()
         self._has_video_frame = False
+        self._luminance_analyzed = False
         self._video_view.hide_codec_banner()
         self._player.stop()
         self._player.setSource(QUrl())
@@ -987,6 +1178,8 @@ class VideoPlayer(QWidget):
         if self._trim_panel.isVisible():
             self.toggle_trim()
         self.apply_adjustments(0, 0, 1.0)
+        if self._smart_enhance_active:
+            self._video_view.set_smart_enhance(True)
 
     def skip_forward(self, ms: int = 5000) -> None:
         new_pos = min(self._player.position() + ms, self._player.duration())

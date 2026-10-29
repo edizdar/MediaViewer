@@ -258,6 +258,80 @@ class VideoTranscodeWorker(QThread):
             self.finished.emit(False, f"FFmpeg çalıştırma hatası: {e}", "")
 
 
+class VideoEnhanceWorker(QThread):
+    """Background worker thread that enhances video quality using FFmpeg:
+    - hqdn3d (3D spatial/temporal denoise to remove compression grain)
+    - unsharp (intelligent edge sharpening)
+    - eq (dynamic range, color vibrancy, and shadow lift)
+    """
+
+    finished = Signal(bool, str, str)  # (success, message, output_path)
+
+    def __init__(
+        self,
+        ffmpeg_exe: str,
+        input_path: Path,
+        output_path: Path,
+        parent=None,
+    ) -> None:
+        super().__init__(parent)
+        self._ffmpeg = ffmpeg_exe
+        self._input = input_path
+        self._output = output_path
+
+    def run(self) -> None:
+        startupinfo = None
+        if os.name == "nt":
+            startupinfo = subprocess.STARTUPINFO()
+            startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
+
+        vf_filters = (
+            "hqdn3d=1.5:1.5:4:4,"
+            "unsharp=5:5:0.8:5:5:0.0,"
+            "eq=contrast=1.12:brightness=0.03:saturation=1.16:gamma=1.10"
+        )
+
+        cmd = [
+            self._ffmpeg,
+            "-y",
+            "-i",
+            str(self._input),
+            "-vf",
+            vf_filters,
+            "-c:v",
+            "libx264",
+            "-preset",
+            "fast",
+            "-crf",
+            "20",
+            "-pix_fmt",
+            "yuv420p",
+            "-c:a",
+            "aac",
+            "-b:a",
+            "192k",
+            str(self._output),
+        ]
+
+        try:
+            res = subprocess.run(
+                cmd,
+                capture_output=True,
+                text=True,
+                encoding="utf-8",
+                errors="replace",
+                startupinfo=startupinfo,
+            )
+
+            if res.returncode == 0 and self._output.is_file() and self._output.stat().st_size > 1024:
+                self.finished.emit(True, "Video kalitesi başarıyla artırıldı ve netleştirildi.", str(self._output))
+            else:
+                err_msg = res.stderr[-400:] if res.stderr else "Bilinmeyen FFmpeg iyileştirme hatası."
+                self.finished.emit(False, f"İyileştirme başarısız oldu:\n{err_msg}", "")
+        except Exception as e:
+            self.finished.emit(False, f"FFmpeg çalıştırma hatası: {e}", "")
+
+
 class TrimSlider(QSlider):
     """QSlider that visually renders the trim range and markers on its track."""
 
