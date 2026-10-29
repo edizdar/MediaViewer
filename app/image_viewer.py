@@ -3,6 +3,7 @@
 from pathlib import Path
 from typing import Optional
 
+import cv2
 import numpy as np
 from PySide6.QtCore import Qt, Signal, QRectF
 from PySide6.QtGui import (
@@ -418,19 +419,27 @@ class ImageViewer(QGraphicsView):
             return self._pixmap_item.pixmap().toImage()
         return None
 
-    def apply_adjustments(self, brightness: int, contrast: int, gamma: float) -> None:
-        """Apply brightness/contrast/gamma adjustments using a fast NumPy LUT.
+    def apply_adjustments(
+        self, brightness: int, contrast: int, gamma: float, sharpness: int = 0
+    ) -> None:
+        """Apply brightness/contrast/gamma and unsharp mask sharpness adjustments.
 
         Args:
             brightness: -100 to +100
             contrast:   -100 to +100
             gamma:      0.1 to 3.0  (1.0 = no change)
+            sharpness:  0 to 100%   (0 = no sharpening)
         """
         if self._original_image is None or self._pixmap_item is None:
             return
 
         # Fast path — no adjustments
-        if brightness == 0 and contrast == 0 and abs(gamma - 1.0) < 0.01:
+        if (
+            brightness == 0
+            and contrast == 0
+            and abs(gamma - 1.0) < 0.01
+            and sharpness == 0
+        ):
             self._pixmap_item.setPixmap(QPixmap.fromImage(self._original_image))
             self._pixmap_item.update()
             self.viewport().update()
@@ -462,6 +471,15 @@ class ImageViewer(QGraphicsView):
         out_pixels[:, :, 1] = lut[pixel_bytes[:, :, 1]]  # G
         out_pixels[:, :, 2] = lut[pixel_bytes[:, :, 2]]  # R
         # out_pixels[:, :, 3] is Alpha — left untouched
+
+        # ── Edge Sharpening (Unsharp Mask via Gaussian blur high-pass) ──
+        if sharpness > 0:
+            sigma = 1.0 + (sharpness / 100.0) * 1.5
+            amount = (sharpness / 100.0) * 1.8
+            bgr = out_pixels[:, :, :3]
+            blurred = cv2.GaussianBlur(bgr, (0, 0), sigma)
+            sharpened = cv2.addWeighted(bgr, 1.0 + amount, blurred, -amount, 0)
+            out_pixels[:, :, :3] = np.clip(sharpened, 0, 255).astype(np.uint8)
 
         adjusted = QImage(
             out_pixels.data,

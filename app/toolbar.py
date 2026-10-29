@@ -38,6 +38,7 @@ class TopToolbar(QWidget):
     next_clicked = Signal()
     fullscreen_clicked = Signal()
     playlist_toggled = Signal()
+    help_clicked = Signal()
 
     def __init__(self, parent=None) -> None:
         super().__init__(parent)
@@ -101,6 +102,13 @@ class TopToolbar(QWidget):
         self._fullscreen_btn.clicked.connect(self.fullscreen_clicked)
         layout.addWidget(self._fullscreen_btn)
 
+        layout.addWidget(_separator())
+
+        # Help / Guide button
+        self._help_btn = _icon_button("❓", "Kullanım Kılavuzu & Yardım (F1)")
+        self._help_btn.clicked.connect(self.help_clicked)
+        layout.addWidget(self._help_btn)
+
     def set_file_info(self, name: str, index: int, total: int) -> None:
         """Update the file name and navigation counter."""
         self._file_label.setText(name)
@@ -125,6 +133,7 @@ class BottomToolbar(QWidget):
     rotate_cw_clicked = Signal()
     rotate_ccw_clicked = Signal()
     crop_clicked = Signal()
+    upscale_clicked = Signal()
     delete_clicked = Signal()
     adjustments_toggled = Signal()
 
@@ -185,6 +194,11 @@ class BottomToolbar(QWidget):
         self._crop_btn = _icon_button("✂", "Fotoğrafı Kırp (C)")
         self._crop_btn.clicked.connect(self.crop_clicked)
         img_layout.addWidget(self._crop_btn)
+
+        # HD Upscale button
+        self._upscale_btn = _icon_button("🖼️ HD", "Resmi HD Yap ve Büyüt (2x / 4x Smart Upscale)")
+        self._upscale_btn.clicked.connect(self.upscale_clicked)
+        img_layout.addWidget(self._upscale_btn)
 
         layout.addWidget(self._image_controls)
 

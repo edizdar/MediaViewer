@@ -4,7 +4,7 @@ from pathlib import Path
 from typing import Optional
 
 from PySide6.QtCore import Qt, Signal, QUrl, Slot, QSizeF, QPoint, QEvent, QTimer, QRectF
-from PySide6.QtGui import QMouseEvent, QWheelEvent, QPainter, QColor, QDesktopServices
+from PySide6.QtGui import QMouseEvent, QWheelEvent, QPainter, QColor, QDesktopServices, QImage
 from PySide6.QtMultimedia import QMediaPlayer, QAudioOutput, QVideoFrame
 from PySide6.QtMultimediaWidgets import QGraphicsVideoItem
 from PySide6.QtWidgets import (
@@ -20,6 +20,8 @@ from PySide6.QtWidgets import (
     QGraphicsScene,
     QGraphicsItem,
     QMenu,
+    QFileDialog,
+    QMessageBox,
 )
 
 from app.video_trim import TrimSlider, VideoTrimPanel
@@ -759,6 +761,15 @@ class VideoPlayer(QWidget):
         self._smart_enhance_btn.clicked.connect(self.toggle_smart_enhance)
         bottom_row.addWidget(self._smart_enhance_btn)
 
+        # Snapshot button
+        self._snapshot_btn = QPushButton("📸 Kare Yakala")
+        self._snapshot_btn.setObjectName("speedBtn")
+        self._snapshot_btn.setToolTip("Videodan Orijinal Çözünürlükte Kare Yakala (S)")
+        self._snapshot_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        self._snapshot_btn.setFixedHeight(30)
+        self._snapshot_btn.clicked.connect(self.capture_frame_and_save)
+        bottom_row.addWidget(self._snapshot_btn)
+
         # Playback speed button
         self._speed_btn = QPushButton("1.0x")
         self._speed_btn.setObjectName("speedBtn")
@@ -840,11 +851,47 @@ class VideoPlayer(QWidget):
 
     def _on_first_video_frame(self, frame: QVideoFrame) -> None:
         if frame.isValid() and frame.size().width() > 0:
+            self._current_frame = frame
             self._has_video_frame = True
             self._codec_check_timer.stop()
             self._video_view.hide_codec_banner()
             self._attach_audio()
             self._analyze_video_luminance(frame)
+
+    def capture_frame(self) -> Optional[QImage]:
+        """Capture the current video frame as an original-resolution QImage."""
+        if hasattr(self, "_current_frame") and self._current_frame and self._current_frame.isValid():
+            qimg = self._current_frame.toImage()
+            if not qimg.isNull():
+                return qimg
+        return None
+
+    def capture_frame_and_save(self) -> None:
+        """Capture current video frame at full native resolution and save to disk."""
+        qimg = self.capture_frame()
+        if qimg is None:
+            self._video_view.show_osd("⚠️ Kare Yakalanamadı", False)
+            return
+
+        default_name = "video_kare.png"
+        default_dir = ""
+        if self._current_path:
+            sec = int(self._player.position() / 1000)
+            default_name = f"{self._current_path.stem}_kare_{sec:03d}.png"
+            default_dir = str(self._current_path.parent / default_name)
+
+        save_path, _ = QFileDialog.getSaveFileName(
+            self,
+            "Video Karesini Kaydet (Snapshot)",
+            default_dir,
+            "PNG Dosyası (*.png);;JPEG Dosyası (*.jpg *.jpeg);;Tüm Dosyalar (*)",
+        )
+        if save_path:
+            saved = qimg.save(save_path)
+            if saved:
+                self._video_view.show_osd(f"📸 Kare Kaydedildi: {Path(save_path).name}", True)
+            else:
+                QMessageBox.critical(self, "Hata", "Dosya diske kaydedilemedi.")
 
     def _analyze_video_luminance(self, frame: QVideoFrame) -> None:
         if self._luminance_analyzed:
@@ -914,6 +961,9 @@ class VideoPlayer(QWidget):
 
         trim_act = menu.addAction("✂ Videoyu Kırp (T)")
         trim_act.triggered.connect(self.toggle_trim)
+
+        snap_act = menu.addAction("📸 Orijinal Çözünürlükte Kare Yakala (S)")
+        snap_act.triggered.connect(self.capture_frame_and_save)
 
         menu.addSeparator()
 

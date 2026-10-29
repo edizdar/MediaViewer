@@ -34,6 +34,8 @@ from app.image_adjustments import AdjustmentsPanel
 from app.playlist import PlaylistPanel
 from app.toolbar import TopToolbar, BottomToolbar
 from app.styles import DARK_THEME
+from app.help_dialog import HelpDialog
+from app.upscale_dialog import UpscaleDialog
 
 
 class WelcomeWidget(QWidget):
@@ -175,6 +177,7 @@ class MainWindow(QMainWindow):
         self._top_toolbar.next_clicked.connect(self._on_nav_next)
         self._top_toolbar.fullscreen_clicked.connect(self._toggle_fullscreen)
         self._top_toolbar.playlist_toggled.connect(self._toggle_playlist)
+        self._top_toolbar.help_clicked.connect(self._show_help_dialog)
 
         # Bottom toolbar
         self._bottom_toolbar.zoom_in_clicked.connect(self._image_viewer.zoom_in)
@@ -184,6 +187,7 @@ class MainWindow(QMainWindow):
         self._bottom_toolbar.rotate_cw_clicked.connect(self._image_viewer.rotate_cw)
         self._bottom_toolbar.rotate_ccw_clicked.connect(self._image_viewer.rotate_ccw)
         self._bottom_toolbar.crop_clicked.connect(self._toggle_image_crop)
+        self._bottom_toolbar.upscale_clicked.connect(self._show_upscale_dialog)
         self._bottom_toolbar.delete_clicked.connect(self._delete_current_file)
         self._bottom_toolbar.adjustments_toggled.connect(self._toggle_adjustments)
 
@@ -229,9 +233,12 @@ class MainWindow(QMainWindow):
             "C": self._toggle_image_crop,
             "T": self._toggle_video_trim,
             "E": self._on_enhance_shortcut,
+            "S": self._on_snapshot_shortcut,
             "Delete": self._delete_current_file,
             "Ctrl+J": self._toggle_adjustments,
             "Ctrl+L": self._toggle_playlist,
+            "Ctrl+Shift+U": self._show_upscale_dialog,
+            "F1": self._show_help_dialog,
         }
 
         for key, slot in shortcuts.items():
@@ -296,6 +303,14 @@ class MainWindow(QMainWindow):
 
             elif key == Qt.Key.Key_F11:
                 self._toggle_fullscreen()
+                return True
+
+            elif key == Qt.Key.Key_F1:
+                self._show_help_dialog()
+                return True
+
+            elif key == Qt.Key.Key_S and in_video:
+                self._on_snapshot_shortcut()
                 return True
 
             if in_video:
@@ -629,12 +644,41 @@ class MainWindow(QMainWindow):
             self._update_toolbar_info()
 
     def _on_adjustments_changed(
-        self, brightness: int, contrast: int, gamma: float
+        self, brightness: int, contrast: int, gamma: float, sharpness: int = 0
     ) -> None:
         if self._stack.currentIndex() == 1:
-            self._image_viewer.apply_adjustments(brightness, contrast, gamma)
+            self._image_viewer.apply_adjustments(brightness, contrast, gamma, sharpness)
         elif self._stack.currentIndex() == 2:
             self._video_player.apply_adjustments(brightness, contrast, gamma)
+
+    def _show_help_dialog(self) -> None:
+        """Open the User Guide and FAQ Dialog."""
+        dlg = HelpDialog(self)
+        dlg.exec()
+
+    def _show_upscale_dialog(self) -> None:
+        """Open the Smart HD Upscaling Dialog for the current image."""
+        if self._stack.currentIndex() != 1:
+            QMessageBox.information(
+                self,
+                "HD Büyütme",
+                "HD Akıllı Büyütme özelliği yalnızca fotoğraflarda kullanılabilir.\n"
+                "Lütfen bir fotoğraf açın.",
+            )
+            return
+
+        img = self._image_viewer.get_current_image()
+        if img is None:
+            return
+
+        dlg = UpscaleDialog(img, self._file_manager.current_file, self)
+        dlg.upscaled_image_ready.connect(lambda p: self.open_file(p))
+        dlg.exec()
+
+    def _on_snapshot_shortcut(self) -> None:
+        """Capture video snapshot when in video mode."""
+        if self._stack.currentIndex() == 2:
+            self._video_player.capture_frame_and_save()
 
     def _save_adjusted_image(self) -> None:
         """Save the color-adjusted photo to disk."""

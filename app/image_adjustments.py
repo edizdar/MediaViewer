@@ -79,13 +79,13 @@ class AdjustmentSlider(QWidget):
 
 
 class AdjustmentsPanel(QWidget):
-    """Side panel with brightness, contrast, and gamma sliders.
+    """Side panel with brightness, contrast, gamma, and sharpness sliders.
 
-    Emits adjustments_changed(brightness, contrast, gamma) with a debounce
-    so that heavy LUT recalculations only happen after the user pauses sliding.
+    Emits adjustments_changed(brightness, contrast, gamma, sharpness) with a debounce
+    so that heavy recalculations only happen after the user pauses sliding.
     """
 
-    adjustments_changed = Signal(int, int, float)  # brightness, contrast, gamma
+    adjustments_changed = Signal(int, int, float, int)  # brightness, contrast, gamma, sharpness
     save_clicked = Signal()
 
     def __init__(self, parent=None) -> None:
@@ -137,6 +137,13 @@ class AdjustmentsPanel(QWidget):
         )
         self._gamma.value_changed.connect(self._schedule_update)
         layout.addWidget(self._gamma)
+
+        # ── Sharpness / Netlik ── (0..100%)
+        self._sharpness = AdjustmentSlider(
+            "🔍  Netlik (Keskinlik)", 0, 100, 0, suffix="%"
+        )
+        self._sharpness.value_changed.connect(self._schedule_update)
+        layout.addWidget(self._sharpness)
 
         # ── Smart Auto Enhance Button ──
         self._smart_btn = QPushButton("✨  Akıllı Ayarla")
@@ -192,6 +199,7 @@ class AdjustmentsPanel(QWidget):
         self._brightness.slider_released.connect(self._emit_changes)
         self._contrast.slider_released.connect(self._emit_changes)
         self._gamma.slider_released.connect(self._emit_changes)
+        self._sharpness.slider_released.connect(self._emit_changes)
 
     # ── Public API ──────────────────────────────────────────────────────
 
@@ -205,19 +213,23 @@ class AdjustmentsPanel(QWidget):
         self._brightness.blockSignals(True)
         self._contrast.blockSignals(True)
         self._gamma.blockSignals(True)
+        self._sharpness.blockSignals(True)
         self._brightness.reset()
         self._contrast.reset()
         self._gamma.reset()
+        self._sharpness.reset()
         self._brightness.blockSignals(False)
         self._contrast.blockSignals(False)
         self._gamma.blockSignals(False)
+        self._sharpness.blockSignals(False)
         self._emit_changes()
 
     def apply_smart_enhance(self) -> None:
-        """Apply an optimal balance of contrast, brightness, and shadow lift."""
+        """Apply an optimal balance of contrast, brightness, shadow lift, and crisp sharpness."""
         self._brightness._slider.setValue(8)
         self._contrast._slider.setValue(24)
         self._gamma._slider.setValue(125)
+        self._sharpness._slider.setValue(35)
         self._emit_changes()
 
     def has_adjustments(self) -> bool:
@@ -226,6 +238,7 @@ class AdjustmentsPanel(QWidget):
             self._brightness.value() != 0
             or self._contrast.value() != 0
             or self._gamma.value() != 100
+            or self._sharpness.value() != 0
         )
 
     # ── Private ─────────────────────────────────────────────────────────
@@ -239,4 +252,5 @@ class AdjustmentsPanel(QWidget):
             self._brightness.value(),
             self._contrast.value(),
             gamma,
+            self._sharpness.value(),
         )
