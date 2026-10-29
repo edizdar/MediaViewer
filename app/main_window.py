@@ -23,7 +23,7 @@ from PySide6.QtWidgets import (
 from app.file_manager import FileManager
 from app.image_viewer import ImageViewer
 from app.video_player import VideoPlayer
-from app.video_trim import get_ffmpeg_executable, VideoTrimWorker
+from app.video_trim import get_ffmpeg_executable, VideoTrimWorker, VideoTranscodeWorker
 from app.image_adjustments import AdjustmentsPanel
 from app.playlist import PlaylistPanel
 from app.toolbar import TopToolbar, BottomToolbar
@@ -187,6 +187,7 @@ class MainWindow(QMainWindow):
         self._video_player.double_clicked.connect(self._toggle_fullscreen)
         self._video_player.playback_error.connect(self._on_playback_error)
         self._video_player.trim_save_requested.connect(self._execute_video_trim)
+        self._video_player.transcode_requested.connect(self._convert_video_to_compatible)
 
         # Adjustments panel
         self._adjustments_panel.adjustments_changed.connect(
@@ -819,6 +820,84 @@ class MainWindow(QMainWindow):
         self._trim_worker.finished.connect(on_trim_finished)
         self._trim_worker.start()
 
+    def _convert_video_to_compatible(self, video_path: Path) -> None:
+        """Convert an unplayable or black-screen video to standard H.264 MP4."""
+        ffmpeg_exe = get_ffmpeg_executable()
+        if not ffmpeg_exe:
+            QMessageBox.warning(
+                self,
+                "FFmpeg Bulunamadı",
+                "Video dönüştürme işlemi için FFmpeg bileşeni bulunamadı.\n"
+                "Lütfen sisteminize FFmpeg veya K-Lite Codec Pack kurun.",
+            )
+            return
+
+        default_name = f"{video_path.stem}_uyumlu.mp4"
+        default_path = str(video_path.parent / default_name)
+
+        save_path, _ = QFileDialog.getSaveFileName(
+            self,
+            "Uyumlu MP4 Olarak Kaydet",
+            default_path,
+            "MP4 Video (*.mp4);;Tüm Dosyalar (*)",
+        )
+        if not save_path:
+            return
+
+        out_path = Path(save_path)
+        if out_path.resolve() == video_path.resolve():
+            QMessageBox.warning(
+                self,
+                "Geçersiz Dosya Adı",
+                "Orijinal dosyanın üzerine doğrudan yazılamaz.\nLütfen farklı bir dosya adı seçin.",
+            )
+            return
+
+        progress = QProgressDialog(
+            "Video standart H.264 MP4 formatına dönüştürülüyor...\nLütfen bekleyin.",
+            None,
+            0,
+            0,
+            self,
+        )
+        progress.setWindowTitle("Video Dönüştürülüyor")
+        progress.setWindowModality(Qt.WindowModality.WindowModal)
+        progress.setMinimumDuration(0)
+        progress.setValue(0)
+        progress.show()
+
+        self._video_player.pause()
+
+        self._transcode_worker = VideoTranscodeWorker(
+            ffmpeg_exe=ffmpeg_exe,
+            input_path=video_path,
+            output_path=out_path,
+            parent=self,
+        )
+
+        def on_transcode_finished(success: bool, msg: str, final_path: str):
+            progress.close()
+            if success:
+                reply = QMessageBox.question(
+                    self,
+                    "Dönüştürme Tamamlandı",
+                    f"Video başarıyla standart MP4 formatına dönüştürüldü:\n{out_path.name}\n\n"
+                    "Dönüştürülen videoyu şimdi açmak ister misiniz?",
+                    QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+                    QMessageBox.StandardButton.Yes,
+                )
+                if reply == QMessageBox.StandardButton.Yes:
+                    self.open_file(final_path)
+            else:
+                QMessageBox.critical(
+                    self,
+                    "Dönüştürme Hatası",
+                    f"Video dönüştürülemedi:\n{msg}",
+                )
+
+        self._transcode_worker.finished.connect(on_transcode_finished)
+        self._transcode_worker.start()
+
     # ── Delete ──────────────────────────────────────────────────────────
 
     def _delete_current_file(self) -> None:
@@ -880,3 +959,17 @@ class MainWindow(QMainWindow):
                     self.open_file(file_path)
                     return
         event.ignore()
+
+    def closeEvent(self, event) -> None:
+        """Safely terminate any background FFmpeg workers on exit."""
+        if hasattr(self, "_trim_worker") and self._trim_worker and self._trim_worker.isRunning():
+            self._trim_worker.terminate()
+            self._trim_worker.wait(1000)
+        if (
+            hasattr(self, "_transcode_worker")
+            and self._transcode_worker
+            and self._transcode_worker.isRunning()
+        ):
+            self._transcode_worker.terminate()
+            self._transcode_worker.wait(1000)
+        super().closeEvent(event)

@@ -9,6 +9,12 @@ import os
 import sys
 from pathlib import Path
 
+# Configure Qt Multimedia FFmpeg hardware/software decoding fallback.
+# Allows graceful fallback to CPU software decoding ('none') when D3D11VA/DXVA2 hardware
+# decoding fails or when Windows HEVC/H.265 Media Foundation MFT is missing.
+os.environ.setdefault("QT_MEDIA_BACKEND", "ffmpeg")
+os.environ.setdefault("QT_FFMPEG_DECODING_HW_DEVICE_TYPES", "d3d11va,dxva2,none")
+
 from PySide6.QtWidgets import QApplication
 from PySide6.QtCore import Qt
 
