@@ -195,6 +195,8 @@ def _file_icon(path: Path) -> str:
         return "🖼"
     elif ext in FileManager.VIDEO_EXTENSIONS:
         return "🎬"
+    elif ext in FileManager.AUDIO_EXTENSIONS:
+        return "🎵"
     return "📄"
 
 

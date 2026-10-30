@@ -3,8 +3,6 @@
 from pathlib import Path
 from typing import Optional
 
-import cv2
-import numpy as np
 from PySide6.QtCore import Qt, Signal, QRectF
 from PySide6.QtGui import (
     QPixmap, QWheelEvent, QMouseEvent, QTransform, QImage, QPainter,
@@ -446,6 +444,8 @@ class ImageViewer(QGraphicsView):
             return
 
         # ── Build 256-entry LUT via NumPy ──
+        import numpy as np
+
         contrast_factor = (100.0 + contrast) / 100.0
         inv_gamma = 1.0 / max(gamma, 0.01)
 
@@ -474,6 +474,7 @@ class ImageViewer(QGraphicsView):
 
         # ── Edge Sharpening (Unsharp Mask via Gaussian blur high-pass) ──
         if sharpness > 0:
+            import cv2
             sigma = 1.0 + (sharpness / 100.0) * 1.5
             amount = (sharpness / 100.0) * 1.8
             bgr = out_pixels[:, :, :3]

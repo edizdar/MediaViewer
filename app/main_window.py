@@ -24,21 +24,12 @@ from app import APP_TITLE, get_app_icon
 from app.file_manager import FileManager
 from app.image_viewer import ImageViewer
 from app.video_player import VideoPlayer
-from app.video_trim import (
-    get_ffmpeg_executable,
-    VideoTrimWorker,
-    VideoTranscodeWorker,
-    VideoEnhanceWorker,
-)
 from app.image_adjustments import AdjustmentsPanel
 from app.playlist import PlaylistPanel
 from app.toolbar import TopToolbar, BottomToolbar
 from app.styles import DARK_THEME
-from app.help_dialog import HelpDialog
-from app.upscale_dialog import UpscaleDialog
 from app.updater import (
     UpdateNotificationBanner,
-    UpdateDialog,
     UpdateCheckWorker,
     UpdateInfo,
 )
@@ -197,6 +188,7 @@ class MainWindow(QMainWindow):
 
     def _show_update_dialog(self, info: UpdateInfo) -> None:
         """Display the update changelog modal."""
+        from app.updater import UpdateDialog
         dlg = UpdateDialog(info, self)
         dlg.exec()
 
@@ -504,7 +496,7 @@ class MainWindow(QMainWindow):
 
         if self._file_manager.is_image(path):
             self._show_image(path)
-        elif self._file_manager.is_video(path):
+        elif self._file_manager.is_playable_media(path):
             self._show_video(path)
         else:
             QMessageBox.warning(
@@ -590,7 +582,7 @@ class MainWindow(QMainWindow):
 
         if self._file_manager.is_image(path):
             self._show_image(path)
-        elif self._file_manager.is_video(path):
+        elif self._file_manager.is_playable_media(path):
             self._show_video(path)
 
         self._update_toolbar_info()
@@ -617,7 +609,7 @@ class MainWindow(QMainWindow):
 
         if self._file_manager.is_image(path):
             self._show_image(path)
-        elif self._file_manager.is_video(path):
+        elif self._file_manager.is_playable_media(path):
             self._show_video(path)
 
         self._update_toolbar_info()
@@ -681,6 +673,7 @@ class MainWindow(QMainWindow):
 
     def _show_help_dialog(self) -> None:
         """Open the User Guide and FAQ Dialog."""
+        from app.help_dialog import HelpDialog
         dlg = HelpDialog(self)
         dlg.exec()
 
@@ -699,6 +692,7 @@ class MainWindow(QMainWindow):
         if img is None:
             return
 
+        from app.upscale_dialog import UpscaleDialog
         dlg = UpscaleDialog(img, self._file_manager.current_file, self)
         dlg.upscaled_image_ready.connect(lambda p: self.open_file(p))
         dlg.exec()
@@ -814,6 +808,7 @@ class MainWindow(QMainWindow):
         crop_box: Optional[tuple[int, int, int, int]] = None,
     ) -> None:
         """Execute video trimming and/or spatial cropping via FFmpeg in a background thread."""
+        from app.video_trim import get_ffmpeg_executable, VideoTrimWorker
         ffmpeg_exe = get_ffmpeg_executable()
         if not ffmpeg_exe:
             QMessageBox.warning(
@@ -905,6 +900,7 @@ class MainWindow(QMainWindow):
 
     def _convert_video_to_compatible(self, video_path: Path) -> None:
         """Convert an unplayable or black-screen video to standard H.264 MP4."""
+        from app.video_trim import get_ffmpeg_executable, VideoTranscodeWorker
         ffmpeg_exe = get_ffmpeg_executable()
         if not ffmpeg_exe:
             QMessageBox.warning(
@@ -992,6 +988,7 @@ class MainWindow(QMainWindow):
 
     def _execute_video_enhance(self, video_path: Path) -> None:
         """Enhance video quality, denoise, and sharpen via FFmpeg in a background thread."""
+        from app.video_trim import get_ffmpeg_executable, VideoEnhanceWorker
         ffmpeg_exe = get_ffmpeg_executable()
         if not ffmpeg_exe:
             QMessageBox.warning(

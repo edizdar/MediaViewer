@@ -12,16 +12,24 @@ class FileManager:
         ".png", ".bmp", ".gif", ".webp",
         ".tiff", ".tif", ".ico", ".svg",
         ".heic", ".heif", ".avif",
+        ".raw", ".cr2", ".nef", ".arw", ".dng",
     }
 
     VIDEO_EXTENSIONS = {
-        ".mp4", ".avi", ".mkv", ".mov", ".wmv", ".flv",
-        ".webm", ".m4v", ".mpg", ".mpeg", ".3gp",
-        ".mts", ".m2ts", ".ts", ".vob", ".ogv",
-        ".asf", ".f4v", ".rm", ".rmvb", ".divx",
+        ".mp4", ".m4v", ".mkv", ".avi", ".mov", ".wmv", ".flv",
+        ".webm", ".mpg", ".mpeg", ".m2v", ".3gp", ".3g2",
+        ".mts", ".m2ts", ".m2t", ".ts", ".vob", ".ogv",
+        ".asf", ".f4v", ".rm", ".rmvb", ".divx", ".xvid",
+        ".wm", ".wmp", ".amv", ".yuv",
     }
 
-    ALL_EXTENSIONS = IMAGE_EXTENSIONS | VIDEO_EXTENSIONS
+    AUDIO_EXTENSIONS = {
+        ".wma", ".mp3", ".wav", ".m4a", ".aac", ".flac",
+        ".ogg", ".oga", ".opus", ".alac", ".aiff", ".aif",
+        ".mid", ".midi", ".amr", ".ac3", ".ape",
+    }
+
+    ALL_EXTENSIONS = IMAGE_EXTENSIONS | VIDEO_EXTENSIONS | AUDIO_EXTENSIONS
 
     def __init__(self) -> None:
         self._files: list[Path] = []
@@ -107,6 +115,17 @@ class FileManager:
             return False
         return p.suffix.lower() in self.VIDEO_EXTENSIONS
 
+    def is_audio(self, path: Optional[Path] = None) -> bool:
+        """Check if the given path (or current file) is an audio file."""
+        p = path or self.current_file
+        if p is None:
+            return False
+        return p.suffix.lower() in self.AUDIO_EXTENSIONS
+
+    def is_playable_media(self, path: Optional[Path] = None) -> bool:
+        """Check if the given path is a playable video or audio file."""
+        return self.is_video(path) or self.is_audio(path)
+
     def delete_current(self) -> Optional[Path]:
         """Remove the current file from the list and return the next file to show.
 
@@ -132,12 +151,14 @@ class FileManager:
         """Return a file dialog filter string for supported formats."""
         img_exts = " ".join(f"*{ext}" for ext in sorted(FileManager.IMAGE_EXTENSIONS))
         vid_exts = " ".join(f"*{ext}" for ext in sorted(FileManager.VIDEO_EXTENSIONS))
-        all_exts = f"{img_exts} {vid_exts}"
+        aud_exts = " ".join(f"*{ext}" for ext in sorted(FileManager.AUDIO_EXTENSIONS))
+        all_exts = f"{img_exts} {vid_exts} {aud_exts}"
 
         return (
             f"Tüm Medya Dosyaları ({all_exts});;"
             f"Fotoğraflar ({img_exts});;"
             f"Videolar ({vid_exts});;"
+            f"Ses Dosyaları ({aud_exts});;"
             f"Tüm Dosyalar (*)"
         )
 
