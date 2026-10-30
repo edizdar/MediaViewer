@@ -545,12 +545,9 @@ class MainWindow(QMainWindow):
             self._video_player.apply_adjustments(0, 0, 1.0)
 
     def _on_playback_error(self, err_msg: str) -> None:
-        QMessageBox.warning(
-            self,
-            "Video Oynatma Uyarısı",
-            f"Video doğrudan oynatılamadı:\n{err_msg}\n\n"
-            "Dahili FFmpeg motorumuz ile videoyu standart MP4 formatına dönüştürüp sorunsuz izleyebilirsiniz.",
-        )
+        # Non-intrusive: Video view already handles unplayable media with its in-view banner.
+        # Never block user navigation with modal popups.
+        pass
 
     def _on_image_loaded(self, width: int, height: int) -> None:
         self._current_image_size = (width, height)

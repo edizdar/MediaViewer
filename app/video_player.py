@@ -951,23 +951,28 @@ class VideoPlayer(QWidget):
             self.enhance_save_requested.emit(self._current_path)
 
     def _check_codec_status(self) -> None:
-        if not self._has_video_frame and self._current_path:
-            item_size = self._video_view.video_item.size()
-            native_size = self._video_view.video_item.nativeSize()
-            has_dimensions = (
-                (item_size.isValid() and item_size.width() > 0)
-                or (native_size.isValid() and native_size.width() > 0)
-            )
-            if has_dimensions:
-                self._has_video_frame = True
-                self._video_view.hide_codec_banner()
-                return
+        if not self._current_path or not self._player.hasVideo():
+            return
+        if self._has_video_frame:
+            return
 
-            if (
-                self._player.playbackState() == QMediaPlayer.PlaybackState.PlayingState
-                and (self._player.position() > 2500 or self._player.duration() > 0)
-            ):
-                self._video_view.show_codec_banner()
+        item_size = self._video_view.video_item.size()
+        native_size = self._video_view.video_item.nativeSize()
+        has_dimensions = (
+            (item_size.isValid() and item_size.width() > 0)
+            or (native_size.isValid() and native_size.width() > 0)
+        )
+        if has_dimensions:
+            self._has_video_frame = True
+            self._video_view.hide_codec_banner()
+            return
+
+        # Genuine black screen: has video track, playing for > 4.5s, but 0 frames and 0 dimensions
+        if (
+            self._player.playbackState() == QMediaPlayer.PlaybackState.PlayingState
+            and self._player.position() > 4500
+        ):
+            self._video_view.show_codec_banner()
 
     def _show_video_context_menu(self, pos: QPoint) -> None:
         menu = QMenu(self)
@@ -1192,7 +1197,7 @@ class VideoPlayer(QWidget):
         self._adaptive_gamma_boost = 0.0
         self._adaptive_brightness_boost = 0
         self._video_view.hide_codec_banner()
-        self._codec_check_timer.start(3500)
+        self._codec_check_timer.start(5000)
         if self._smart_enhance_active:
             self._video_view.set_smart_enhance(True)
 
@@ -1273,9 +1278,10 @@ class VideoPlayer(QWidget):
             self._player.pause()
             self._is_previewing_trim = False
 
-        # Detect black screen (audio playing for > 3.0s with no video frame decoded)
+        # Detect black screen (audio playing for > 5.0s with no video frame decoded)
         if (
-            position > 3000
+            position > 5000
+            and self._player.hasVideo()
             and not self._has_video_frame
             and not self._video_view.is_codec_banner_visible
         ):

@@ -9,11 +9,11 @@ import os
 import sys
 from pathlib import Path
 
-# Prefer Windows Media Foundation (WMF) backend on Windows for 100% parity with Windows Media Player
-# and robust, glitch-free playback of MP4, M4V (GoPro Quik, iPhone), MOV, WMV, AVI.
-# Both windowsmediaplugin and ffmpegmediaplugin are bundled in the application.
-if "QT_MEDIA_BACKEND" not in os.environ and sys.platform == "win32":
-    os.environ["QT_MEDIA_BACKEND"] = "windows"
+# Use Qt Multimedia bundled FFmpeg backend with automatic hardware->software fallback.
+# FFmpeg contains all universal codecs (H.264, HEVC/H.265, VP9, AV1, MPEG-4, etc.)
+# directly embedded inside the application so that no missing codec errors ever occur.
+os.environ["QT_MEDIA_BACKEND"] = "ffmpeg"
+os.environ["QT_FFMPEG_DECODING_HW_DEVICE_TYPES"] = "d3d11va,dxva2,none"
 
 # Windows Taskbar AppUserModelID: Ensures taskbar displays application logo instead of generic window icon
 if sys.platform == "win32":
