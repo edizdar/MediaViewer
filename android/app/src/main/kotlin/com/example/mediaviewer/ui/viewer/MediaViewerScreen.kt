@@ -1,6 +1,8 @@
 package com.example.mediaviewer.ui.viewer
 
 import android.content.Intent
+import android.os.Build
+import android.provider.MediaStore
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
@@ -61,6 +63,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -268,10 +271,19 @@ fun MediaViewerScreen(
                     }
 
                     // Delete button
-                    IconButton(onClick = { showDeleteDialog = true }) {
+                    IconButton(
+                        onClick = {
+                            val isMediaStore = currentItem.uri.authority == MediaStore.AUTHORITY || currentItem.uriString.contains("media")
+                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R && isMediaStore) {
+                                onDelete(currentItem)
+                            } else {
+                                showDeleteDialog = true
+                            }
+                        }
+                    ) {
                         Icon(
                             imageVector = Icons.Default.Delete,
-                            contentDescription = "Sil",
+                            contentDescription = stringResource(R.string.delete),
                             tint = AccentRed
                         )
                     }
@@ -405,10 +417,10 @@ fun MediaViewerScreen(
                 onDismissRequest = { showDeleteDialog = false },
                 containerColor = DarkSurface,
                 shape = RoundedCornerShape(16.dp),
-                title = { Text("Dosyayı Sil?", color = TextPrimary, fontWeight = FontWeight.Bold) },
+                title = { Text(stringResource(R.string.delete_dialog_title), color = TextPrimary, fontWeight = FontWeight.Bold) },
                 text = {
                     Text(
-                        text = "\"${currentItem.name}\" cihazınızdan kalıcı olarak silinecek. Emin misiniz?",
+                        text = stringResource(R.string.delete_dialog_msg, currentItem.name),
                         color = TextSecondary
                     )
                 },
@@ -420,12 +432,12 @@ fun MediaViewerScreen(
                         },
                         colors = androidx.compose.material3.ButtonDefaults.buttonColors(containerColor = AccentRed)
                     ) {
-                        Text("Sil")
+                        Text(stringResource(R.string.delete))
                     }
                 },
                 dismissButton = {
                     TextButton(onClick = { showDeleteDialog = false }) {
-                        Text("İptal", color = TextSecondary)
+                        Text(stringResource(R.string.cancel), color = TextSecondary)
                     }
                 }
             )

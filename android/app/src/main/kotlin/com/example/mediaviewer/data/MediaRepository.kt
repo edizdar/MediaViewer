@@ -1,10 +1,13 @@
 package com.example.mediaviewer.data
 
+import android.app.RecoverableSecurityException
 import android.content.ContentUris
 import android.content.Context
+import android.content.IntentSender
 import android.media.MediaMetadataRetriever
 import android.net.Uri
 import android.os.Build
+import android.provider.DocumentsContract
 import android.provider.MediaStore
 import android.provider.OpenableColumns
 import android.webkit.MimeTypeMap
@@ -14,6 +17,12 @@ import com.example.mediaviewer.model.MediaTypeFilter
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
+
+sealed class DeleteRequestResult {
+    object Success : DeleteRequestResult()
+    object Failed : DeleteRequestResult()
+    data class NeedsUserConsent(val intentSender: IntentSender) : DeleteRequestResult()
+}
 
 class MediaRepository {
 
@@ -419,7 +428,89 @@ class MediaRepository {
         }
     }
 
-    suspend fun deleteItem(context: Context, item: MediaItem): Boolean = withContext(Dispatchers.IO) {
+    suspend fun deleteItem(context: Context, item: MediaItem): DeleteRequestResult = withContext(Dispatchers.IO) {
+        // 1. Direct file check
+        if (item.uri.scheme == "file") {
+            val path = item.path ?: item.uri.path
+            if (path != null) {
+                val f = File(path)
+                if (f.exists() && f.delete()) {
+                    return@withContext DeleteRequestResult.Success
+                }
+            }
+            return@withContext DeleteRequestResult.Failed
+        }
+
+        // 2. Android 11+ (API 30+) MediaStore Scoped Storage
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            val isMediaStore = item.uri.authority == MediaStore.AUTHORITY || item.uriString.contains("media")
+            if (isMediaStore) {
+                try {
+                    // Try createDeleteRequest for MediaStore items - this triggers Android's system prompt
+                    val pi = MediaStore.createDeleteRequest(context.contentResolver, listOf(item.uri))
+                    return@withContext DeleteRequestResult.NeedsUserConsent(pi.intentSender)
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                    // Fallback to direct delete if createDeleteRequest fails
+                    try {
+                        val rows = context.contentResolver.delete(item.uri, null, null)
+                        if (rows > 0) return@withContext DeleteRequestResult.Success
+                    } catch (ex: Exception) {
+                        ex.printStackTrace()
+                    }
+                    return@withContext DeleteRequestResult.Failed
+                }
+            }
+        }
+
+        // 3. Android 10 (API 29) RecoverableSecurityException
+        if (Build.VERSION.SDK_INT == Build.VERSION_CODES.Q) {
+            try {
+                val rows = context.contentResolver.delete(item.uri, null, null)
+                if (rows > 0) return@withContext DeleteRequestResult.Success
+            } catch (e: RecoverableSecurityException) {
+                return@withContext DeleteRequestResult.NeedsUserConsent(e.userAction.actionIntent.intentSender)
+            } catch (e: Exception) {
+                e.printStackTrace()
+                return@withContext DeleteRequestResult.Failed
+            }
+        }
+
+        // 4. Fallback for older Android (API <= 28) or non-MediaStore URIs
+        try {
+            val rows = context.contentResolver.delete(item.uri, null, null)
+            if (rows > 0) return@withContext DeleteRequestResult.Success
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+
+        // 5. DocumentsContract if document URI
+        if (DocumentsContract.isDocumentUri(context, item.uri)) {
+            try {
+                if (DocumentsContract.deleteDocument(context.contentResolver, item.uri)) {
+                    return@withContext DeleteRequestResult.Success
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
+
+        // 6. Direct physical file deletion if path exists
+        item.path?.let { p ->
+            try {
+                val f = File(p)
+                if (f.exists() && f.delete()) {
+                    return@withContext DeleteRequestResult.Success
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
+
+        DeleteRequestResult.Failed
+    }
+
+    suspend fun directDelete(context: Context, item: MediaItem): Boolean = withContext(Dispatchers.IO) {
         try {
             val rows = context.contentResolver.delete(item.uri, null, null)
             rows > 0

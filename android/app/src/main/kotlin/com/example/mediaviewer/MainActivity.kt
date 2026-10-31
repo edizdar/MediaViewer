@@ -1,12 +1,17 @@
 package com.example.mediaviewer
 
+import android.app.Activity
 import android.content.Intent
+import android.os.Build
 import android.os.Bundle
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.activity.result.ActivityResultLauncher
+import androidx.activity.result.IntentSenderRequest
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.compose.animation.Crossfade
 import androidx.compose.foundation.layout.fillMaxSize
@@ -16,15 +21,69 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.ui.Modifier
+import androidx.lifecycle.lifecycleScope
+import com.example.mediaviewer.data.DeleteRequestResult
+import com.example.mediaviewer.model.MediaItem
 import com.example.mediaviewer.ui.gallery.GalleryScreen
 import com.example.mediaviewer.ui.theme.MediaViewerTheme
 import com.example.mediaviewer.ui.viewmodel.MediaViewModel
 import com.example.mediaviewer.ui.viewer.MediaViewerScreen
 import com.example.mediaviewer.util.LanguageManager
+import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
 
     private val viewModel: MediaViewModel by viewModels()
+
+    private val deleteLauncher: ActivityResultLauncher<IntentSenderRequest> =
+        registerForActivityResult(ActivityResultContracts.StartIntentSenderForResult()) { result ->
+            val item = viewModel.pendingDeleteItem
+            viewModel.pendingDeleteItem = null
+
+            if (result.resultCode == Activity.RESULT_OK && item != null) {
+                if (Build.VERSION.SDK_INT == Build.VERSION_CODES.Q) {
+                    viewModel.executeDeleteAfterPermission(this@MainActivity, item) { success ->
+                        if (success) {
+                            Toast.makeText(this@MainActivity, getString(R.string.delete_success), Toast.LENGTH_SHORT).show()
+                        } else {
+                            Toast.makeText(this@MainActivity, getString(R.string.delete_failed), Toast.LENGTH_SHORT).show()
+                        }
+                    }
+                } else {
+                    // On Android 11+ (API 30+), MediaStore.createDeleteRequest automatically deleted the file upon user consent
+                    viewModel.onItemDeleted(this@MainActivity, item)
+                    Toast.makeText(this@MainActivity, getString(R.string.delete_success), Toast.LENGTH_SHORT).show()
+                }
+            } else if (result.resultCode != Activity.RESULT_CANCELED) {
+                Toast.makeText(this@MainActivity, getString(R.string.delete_failed), Toast.LENGTH_SHORT).show()
+            }
+        }
+
+    private fun deleteMediaItemWithPermission(itemToDelete: MediaItem) {
+        lifecycleScope.launch {
+            when (val result = viewModel.requestDeleteItem(this@MainActivity, itemToDelete)) {
+                is DeleteRequestResult.Success -> {
+                    viewModel.onItemDeleted(this@MainActivity, itemToDelete)
+                    Toast.makeText(this@MainActivity, getString(R.string.delete_success), Toast.LENGTH_SHORT).show()
+                }
+                is DeleteRequestResult.NeedsUserConsent -> {
+                    viewModel.pendingDeleteItem = itemToDelete
+                    try {
+                        deleteLauncher.launch(
+                            IntentSenderRequest.Builder(result.intentSender).build()
+                        )
+                    } catch (e: Exception) {
+                        e.printStackTrace()
+                        viewModel.pendingDeleteItem = null
+                        Toast.makeText(this@MainActivity, getString(R.string.delete_failed), Toast.LENGTH_SHORT).show()
+                    }
+                }
+                is DeleteRequestResult.Failed -> {
+                    Toast.makeText(this@MainActivity, getString(R.string.delete_failed), Toast.LENGTH_SHORT).show()
+                }
+            }
+        }
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -54,28 +113,24 @@ class MainActivity : ComponentActivity() {
                             label = "screen_transition"
                         ) { state ->
                             if (state != null) {
-                                MediaViewerScreen(
-                                    items = state.items,
-                                    initialIndex = state.initialIndex,
-                                    onBack = {
-                                        viewModel.closeViewer()
-                                        if (state.isExternal) {
-                                            finish()
-                                        }
-                                    },
-                                    onDelete = { itemToDelete ->
-                                        viewModel.deleteMediaItem(this@MainActivity, itemToDelete) { success ->
-                                            if (success) {
-                                                Toast.makeText(this@MainActivity, getString(R.string.delete_success), Toast.LENGTH_SHORT).show()
-                                            } else {
-                                                Toast.makeText(this@MainActivity, getString(R.string.delete_failed), Toast.LENGTH_SHORT).show()
+                                key(state.items.size) {
+                                    MediaViewerScreen(
+                                        items = state.items,
+                                        initialIndex = state.initialIndex,
+                                        onBack = {
+                                            viewModel.closeViewer()
+                                            if (state.isExternal) {
+                                                finish()
                                             }
+                                        },
+                                        onDelete = { itemToDelete ->
+                                            deleteMediaItemWithPermission(itemToDelete)
+                                        },
+                                        onModified = {
+                                            viewModel.refreshAfterEdit(this@MainActivity)
                                         }
-                                    },
-                                    onModified = {
-                                        viewModel.refreshAfterEdit(this@MainActivity)
-                                    }
-                                )
+                                    )
+                                }
                             } else {
                                 GalleryScreen(
                                     viewModel = viewModel,

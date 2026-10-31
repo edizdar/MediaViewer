@@ -4,6 +4,7 @@ import android.content.Context
 import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.mediaviewer.data.DeleteRequestResult
 import com.example.mediaviewer.data.MediaRepository
 import com.example.mediaviewer.model.MediaItem
 import com.example.mediaviewer.model.MediaTypeFilter
@@ -81,27 +82,59 @@ class MediaViewModel(
         }
     }
 
+    var pendingDeleteItem: MediaItem? = null
+
     fun closeViewer() {
         _viewerState.value = null
     }
 
-    fun deleteMediaItem(context: Context, item: MediaItem, onDone: (Boolean) -> Unit) {
-        viewModelScope.launch {
-            val success = repository.deleteItem(context, item)
-            if (success) {
-                // Update viewer items
-                _viewerState.value?.let { cur ->
-                    val newItems = cur.items.filterNot { it.id == item.id || it.uriString == item.uriString }
-                    if (newItems.isEmpty()) {
-                        _viewerState.value = null
-                    } else {
-                        val newIndex = cur.initialIndex.coerceAtMost(newItems.size - 1)
-                        _viewerState.value = cur.copy(items = newItems, initialIndex = newIndex)
-                    }
+    suspend fun requestDeleteItem(context: Context, item: MediaItem): DeleteRequestResult {
+        return repository.deleteItem(context, item)
+    }
+
+    fun onItemDeleted(context: Context, item: MediaItem) {
+        _viewerState.value?.let { cur ->
+            val deletedIndex = cur.items.indexOfFirst { it.id == item.id || it.uriString == item.uriString }
+            val newItems = cur.items.filterNot { it.id == item.id || it.uriString == item.uriString }
+            if (newItems.isEmpty()) {
+                _viewerState.value = null
+            } else {
+                val targetIndex = if (deletedIndex != -1) {
+                    deletedIndex.coerceAtMost(newItems.size - 1)
+                } else {
+                    cur.initialIndex.coerceAtMost(newItems.size - 1)
                 }
-                loadMedia(context)
+                _viewerState.value = cur.copy(items = newItems, initialIndex = targetIndex)
+            }
+        }
+        loadMedia(context)
+    }
+
+    fun executeDeleteAfterPermission(context: Context, item: MediaItem, onDone: (Boolean) -> Unit) {
+        viewModelScope.launch {
+            val success = repository.directDelete(context, item)
+            if (success) {
+                onItemDeleted(context, item)
             }
             onDone(success)
+        }
+    }
+
+    fun deleteMediaItem(context: Context, item: MediaItem, onDone: (Boolean) -> Unit) {
+        viewModelScope.launch {
+            when (val result = repository.deleteItem(context, item)) {
+                is DeleteRequestResult.Success -> {
+                    onItemDeleted(context, item)
+                    onDone(true)
+                }
+                is DeleteRequestResult.NeedsUserConsent -> {
+                    // Handled via Activity launcher
+                    onDone(false)
+                }
+                is DeleteRequestResult.Failed -> {
+                    onDone(false)
+                }
+            }
         }
     }
 
