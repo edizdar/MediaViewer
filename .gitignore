@@ -6,3 +6,11 @@ build/
 .vscode/
 .idea/
 /MediaViewer*.exe
+dist/
+
+# Android build outputs and caches
+android/.gradle/
+android/build/
+android/app/build/
+android/local.properties
+*.apk

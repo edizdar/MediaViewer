@@ -1,19 +1,21 @@
 # Media Viewer
 
 [![GitHub Release](https://img.shields.io/github/v/release/edizdar/MediaViewer?color=3b82f6&logo=github)](https://github.com/edizdar/MediaViewer/releases/latest)
-[![Platform](https://img.shields.io/badge/Platform-Windows%2010%20%2F%2011-0078d4?logo=windows)](https://github.com/edizdar/MediaViewer/releases/latest/download/MediaViewer.exe)
+[![Platform - Windows](https://img.shields.io/badge/Platform-Windows%2010%20%2F%2011-0078d4?logo=windows)](https://github.com/edizdar/MediaViewer/releases/latest/download/MediaViewer.exe)
+[![Platform - Android](https://img.shields.io/badge/Platform-Android%208.0+-3DDC84?logo=android)](https://github.com/edizdar/MediaViewer/releases/latest/download/MediaViewer.apk)
 [![License](https://img.shields.io/badge/License-Free%20%2F%20Open%20Source-green)](#license)
 [![Website](https://img.shields.io/badge/Official%20Website-eroldizdar.tr-blue)](https://www.eroldizdar.tr/p/mediaviewer.html)
 
-**Media Viewer**, Windows için geliştirilmiş, fotoğraflarınızı incelerken aynı zamanda videolarınızı da tek bir çatı altında oynatabileceğiniz modern, sade, hızlı ve taşınabilir (kurulum gerektirmeyen) bir masaüstü medya görüntüleyicisidir.
+**Media Viewer**, hem Windows masaüstü hem de Android için geliştirilmiş; fotoğraflarınızı incelerken aynı zamanda videolarınızı ve ses dosyalarınızı tek bir çatı altında oynatabileceğiniz modern, sade, hızlı ve taşınabilir bir medya görüntüleyicisidir.
 
-A fast, lightweight, and modern desktop photo and video viewer for Windows. 100% portable with zero dependencies.
+A fast, lightweight, and modern photo, video, and audio viewer for Windows and Android.
 
 ---
 
 ## 📥 İndir / Download
 
-- **Doğrudan İndir (Direct Download):** [MediaViewer.exe (v1.0.0)](https://github.com/edizdar/MediaViewer/releases/latest/download/MediaViewer.exe)
+- **Windows Masaüstü (.exe):** [MediaViewer.exe](https://github.com/edizdar/MediaViewer/releases/latest/download/MediaViewer.exe)
+- **Android Mobil (.apk):** [MediaViewer.apk](https://github.com/edizdar/MediaViewer/releases/latest/download/MediaViewer.apk)
 - **Resmi Web Sitesi / Official Webpage:** [eroldizdar.tr/p/mediaviewer.html](https://www.eroldizdar.tr/p/mediaviewer.html)
 
 ---

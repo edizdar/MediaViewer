@@ -1,0 +1,24 @@
+<resources>
+    <string name="app_name">Media Viewer</string>
+    <string name="tab_all">Tümü</string>
+    <string name="tab_photos">Fotoğraflar</string>
+    <string name="tab_videos">Videolar</string>
+    <string name="tab_audio">Sesler</string>
+    <string name="open_file">Dosya Aç</string>
+    <string name="refresh">Yenile</string>
+    <string name="permission_required_title">Medya Erişimi Gerekli</string>
+    <string name="permission_required_desc">Cihazınızdaki fotoğraf, video ve ses dosyalarını görüntülemek ve oynatmak için medya izni gereklidir.</string>
+    <string name="grant_permission">İzin Ver</string>
+    <string name="no_media_found">Herhangi bir medya bulunamadı</string>
+    <string name="no_media_found_desc">Cihazınızda dosya arayabilir veya doğrudan bir dosya açabilirsiniz.</string>
+    <string name="file_info">Dosya Bilgileri</string>
+    <string name="file_name">Dosya Adı</string>
+    <string name="file_size">Boyut</string>
+    <string name="file_resolution">Çözünürlük</string>
+    <string name="file_duration">Süre</string>
+    <string name="file_date">Tarih</string>
+    <string name="file_mime">Format / Tür</string>
+    <string name="file_path">Konum</string>
+    <string name="close">Kapat</string>
+    <string name="share">Paylaş</string>
+</resources>
