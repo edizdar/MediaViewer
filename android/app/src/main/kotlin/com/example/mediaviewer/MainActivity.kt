@@ -13,11 +13,13 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.ui.Modifier
 import com.example.mediaviewer.ui.gallery.GalleryScreen
 import com.example.mediaviewer.ui.theme.MediaViewerTheme
 import com.example.mediaviewer.ui.viewmodel.MediaViewModel
 import com.example.mediaviewer.ui.viewer.MediaViewerScreen
+import com.example.mediaviewer.util.LanguageManager
 
 class MainActivity : ComponentActivity() {
 
@@ -25,52 +27,59 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        LanguageManager.init(this)
+        LanguageManager.applyLocale(this, LanguageManager.getSavedLanguage(this))
+
         enableEdgeToEdge()
 
         handleIntent(intent)
 
         setContent {
-            MediaViewerTheme {
-                Surface(
-                    modifier = Modifier.fillMaxSize(),
-                    color = MaterialTheme.colorScheme.background
-                ) {
-                    val viewerState by viewModel.viewerState.collectAsState()
+            val currentLang by LanguageManager.currentLanguageState
 
-                    Crossfade(
-                        targetState = viewerState,
-                        label = "screen_transition"
-                    ) { state ->
-                        if (state != null) {
-                            MediaViewerScreen(
-                                items = state.items,
-                                initialIndex = state.initialIndex,
-                                onBack = {
-                                    viewModel.closeViewer()
-                                    if (state.isExternal) {
-                                        finish()
-                                    }
-                                },
-                                onDelete = { itemToDelete ->
-                                    viewModel.deleteMediaItem(this@MainActivity, itemToDelete) { success ->
-                                        if (success) {
-                                            Toast.makeText(this@MainActivity, "Dosya silindi", Toast.LENGTH_SHORT).show()
-                                        } else {
-                                            Toast.makeText(this@MainActivity, "Dosya silinemedi veya izin verilmedi", Toast.LENGTH_SHORT).show()
+            key(currentLang) {
+                MediaViewerTheme {
+                    Surface(
+                        modifier = Modifier.fillMaxSize(),
+                        color = MaterialTheme.colorScheme.background
+                    ) {
+                        val viewerState by viewModel.viewerState.collectAsState()
+
+                        Crossfade(
+                            targetState = viewerState,
+                            label = "screen_transition"
+                        ) { state ->
+                            if (state != null) {
+                                MediaViewerScreen(
+                                    items = state.items,
+                                    initialIndex = state.initialIndex,
+                                    onBack = {
+                                        viewModel.closeViewer()
+                                        if (state.isExternal) {
+                                            finish()
                                         }
+                                    },
+                                    onDelete = { itemToDelete ->
+                                        viewModel.deleteMediaItem(this@MainActivity, itemToDelete) { success ->
+                                            if (success) {
+                                                Toast.makeText(this@MainActivity, getString(R.string.delete_success), Toast.LENGTH_SHORT).show()
+                                            } else {
+                                                Toast.makeText(this@MainActivity, getString(R.string.delete_failed), Toast.LENGTH_SHORT).show()
+                                            }
+                                        }
+                                    },
+                                    onModified = {
+                                        viewModel.refreshAfterEdit(this@MainActivity)
                                     }
-                                },
-                                onModified = {
-                                    viewModel.refreshAfterEdit(this@MainActivity)
-                                }
-                            )
-                        } else {
-                            GalleryScreen(
-                                viewModel = viewModel,
-                                onItemClick = { items, index ->
-                                    viewModel.openMediaItem(items, index)
-                                }
-                            )
+                                )
+                            } else {
+                                GalleryScreen(
+                                    viewModel = viewModel,
+                                    onItemClick = { items, index ->
+                                        viewModel.openMediaItem(items, index)
+                                    }
+                                )
+                            }
                         }
                     }
                 }

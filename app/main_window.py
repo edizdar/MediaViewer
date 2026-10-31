@@ -33,6 +33,7 @@ from app.updater import (
     UpdateCheckWorker,
     UpdateInfo,
 )
+from app.localization import loc, get_localization
 
 
 class WelcomeWidget(QWidget):
@@ -43,20 +44,22 @@ class WelcomeWidget(QWidget):
         layout = QVBoxLayout(self)
         layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
-        title = QLabel(f"📷  {APP_TITLE}")
-        title.setObjectName("welcomeLabel")
-        title.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        title.setStyleSheet("font-size: 28px; font-weight: bold; color: #89b4fa;")
-        layout.addWidget(title)
+        self._title = QLabel(f"📷  {APP_TITLE}")
+        self._title.setObjectName("welcomeLabel")
+        self._title.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self._title.setStyleSheet("font-size: 28px; font-weight: bold; color: #89b4fa;")
+        layout.addWidget(self._title)
 
-        subtitle = QLabel(
-            "Dosya açmak için Ctrl+O tuşuna basın\n"
-            "veya bir dosyayı sürükleyip bırakın"
-        )
-        subtitle.setObjectName("welcomeLabel")
-        subtitle.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        subtitle.setStyleSheet("font-size: 14px; margin-top: 12px;")
-        layout.addWidget(subtitle)
+        self._subtitle = QLabel()
+        self._subtitle.setObjectName("welcomeLabel")
+        self._subtitle.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self._subtitle.setStyleSheet("font-size: 14px; margin-top: 12px;")
+        layout.addWidget(self._subtitle)
+        self.retranslate_ui()
+
+    def retranslate_ui(self) -> None:
+        self._title.setText(f"📷  {APP_TITLE}")
+        self._subtitle.setText(loc("welcome_subtitle"))
 
 
 class MainWindow(QMainWindow):
@@ -139,23 +142,23 @@ class MainWindow(QMainWindow):
         main_layout.addWidget(self._bottom_toolbar)
 
         # ── Fullscreen Overlay Floating Controls (Hidden by default) ──
-        self._fs_exit_btn = QPushButton("✕  Çıkış", central)
+        self._fs_exit_btn = QPushButton(loc("fs_exit_btn"), central)
         self._fs_exit_btn.setObjectName("fsExitBtn")
-        self._fs_exit_btn.setToolTip("Tam Ekrandan Çık (Esc veya F11)")
+        self._fs_exit_btn.setToolTip(loc("fs_exit_tip"))
         self._fs_exit_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         self._fs_exit_btn.hide()
         self._fs_exit_btn.clicked.connect(self._exit_fullscreen)
 
         self._fs_prev_btn = QPushButton("❮", central)
         self._fs_prev_btn.setObjectName("fsNavBtn")
-        self._fs_prev_btn.setToolTip("Önceki Dosya (←)")
+        self._fs_prev_btn.setToolTip(loc("prev_tip"))
         self._fs_prev_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         self._fs_prev_btn.hide()
         self._fs_prev_btn.clicked.connect(self._on_nav_prev)
 
         self._fs_next_btn = QPushButton("❯", central)
         self._fs_next_btn.setObjectName("fsNavBtn")
-        self._fs_next_btn.setToolTip("Sonraki Dosya (→)")
+        self._fs_next_btn.setToolTip(loc("next_tip"))
         self._fs_next_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         self._fs_next_btn.hide()
         self._fs_next_btn.clicked.connect(self._on_nav_next)
@@ -201,6 +204,7 @@ class MainWindow(QMainWindow):
         self._top_toolbar.fullscreen_clicked.connect(self._toggle_fullscreen)
         self._top_toolbar.playlist_toggled.connect(self._toggle_playlist)
         self._top_toolbar.help_clicked.connect(self._show_help_dialog)
+        self._top_toolbar.language_clicked.connect(self._toggle_language)
 
         # Bottom toolbar
         self._bottom_toolbar.zoom_in_clicked.connect(self._image_viewer.zoom_in)
@@ -473,7 +477,7 @@ class MainWindow(QMainWindow):
     def open_file_dialog(self) -> None:
         file_path, _ = QFileDialog.getOpenFileName(
             self,
-            "Medya Dosyası Aç",
+            loc("open_dialog_title"),
             "",
             self._file_manager.get_file_filter(),
         )
@@ -485,7 +489,7 @@ class MainWindow(QMainWindow):
         path = Path(path).resolve()
 
         if not path.is_file():
-            QMessageBox.warning(self, "Hata", f"Dosya bulunamadı:\n{path}")
+            QMessageBox.warning(self, loc("error_title"), loc("file_not_found").format(path))
             return
 
         # Stop any current video playback
@@ -676,6 +680,56 @@ class MainWindow(QMainWindow):
         from app.help_dialog import HelpDialog
         dlg = HelpDialog(self)
         dlg.exec()
+
+    def _toggle_language(self) -> None:
+        """Toggle active language between Turkish and English and refresh UI."""
+        get_localization().toggle_language()
+        self._top_toolbar.retranslate_ui()
+        self._bottom_toolbar.retranslate_ui()
+        self._retranslate_ui()
+        self._show_toast(loc("toast_lang"))
+
+    def _retranslate_ui(self) -> None:
+        """Update window title and child texts on language change."""
+        self._fs_exit_btn.setText(loc("fs_exit_btn"))
+        self._fs_exit_btn.setToolTip(loc("fs_exit_tip"))
+        self._fs_prev_btn.setToolTip(loc("prev_tip"))
+        self._fs_next_btn.setToolTip(loc("next_tip"))
+        if hasattr(self, "_welcome"):
+            self._welcome.retranslate_ui()
+        if hasattr(self, "_adjustments_panel") and hasattr(self._adjustments_panel, "retranslate_ui"):
+            self._adjustments_panel.retranslate_ui()
+        if self._file_manager.current_file is None:
+            self.setWindowTitle(APP_TITLE)
+        else:
+            self.setWindowTitle(f"{self._file_manager.current_file.name} — {APP_TITLE}")
+
+    def _show_toast(self, message: str, duration_ms: int = 1800) -> None:
+        """Display a subtle floating overlay toast notification."""
+        if not hasattr(self, "_toast_widget"):
+            self._toast_widget = QLabel(self)
+            self._toast_widget.setStyleSheet(
+                """
+                QLabel {
+                    background-color: #1e1e2e;
+                    color: #89b4fa;
+                    border: 1px solid #89b4fa;
+                    border-radius: 8px;
+                    padding: 8px 18px;
+                    font-size: 13px;
+                    font-weight: bold;
+                }
+                """
+            )
+            self._toast_widget.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self._toast_widget.setText(message)
+        self._toast_widget.adjustSize()
+        x = (self.width() - self._toast_widget.width()) // 2
+        y = 52
+        self._toast_widget.move(x, y)
+        self._toast_widget.show()
+        self._toast_widget.raise_()
+        QTimer.singleShot(duration_ms, self._toast_widget.hide)
 
     def _show_upscale_dialog(self) -> None:
         """Open the Smart HD Upscaling Dialog for the current image."""
@@ -1074,8 +1128,8 @@ class MainWindow(QMainWindow):
 
         reply = QMessageBox.question(
             self,
-            "Dosyayı Sil",
-            f"Bu dosyayı çöp kutusuna göndermek istediğinize emin misiniz?\n\n{current.name}",
+            loc("delete_confirm_title"),
+            loc("delete_confirm_msg").format(current.name),
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
             QMessageBox.StandardButton.No,
         )
@@ -1094,7 +1148,7 @@ class MainWindow(QMainWindow):
             try:
                 file_to_delete.unlink()
             except OSError as e:
-                QMessageBox.warning(self, "Hata", f"Dosya silinemedi:\n{e}")
+                QMessageBox.warning(self, loc("error_title"), loc("delete_failed").format(e))
                 return
 
         if next_path:

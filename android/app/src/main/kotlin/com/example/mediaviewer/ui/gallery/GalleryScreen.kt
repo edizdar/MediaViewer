@@ -33,10 +33,12 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Audiotrack
 import androidx.compose.material.icons.filled.FolderOpen
 import androidx.compose.material.icons.filled.Image
+import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Security
 import androidx.compose.material.icons.filled.Videocam
+import com.example.mediaviewer.ui.dialogs.LanguageSelectionDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -132,6 +134,8 @@ fun GalleryScreen(
         viewModel.updatePermissionStatus(hasPerms, context)
     }
 
+    var showLanguageDialog by remember { mutableStateOf(false) }
+
     Scaffold(
         containerColor = DarkBackground,
         topBar = {
@@ -171,6 +175,13 @@ fun GalleryScreen(
                     }
                 },
                 actions = {
+                    IconButton(onClick = { showLanguageDialog = true }) {
+                        Icon(
+                            imageVector = Icons.Default.Language,
+                            contentDescription = stringResource(R.string.language),
+                            tint = TextSecondary
+                        )
+                    }
                     IconButton(
                         onClick = {
                             filePickerLauncher.launch(
@@ -261,6 +272,16 @@ fun GalleryScreen(
                     }
                 }
             }
+        }
+
+        if (showLanguageDialog) {
+            LanguageSelectionDialog(
+                onDismiss = { showLanguageDialog = false },
+                onLanguageSelected = {
+                    showLanguageDialog = false
+                    viewModel.loadMedia(context)
+                }
+            )
         }
     }
 }

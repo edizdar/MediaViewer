@@ -11,6 +11,8 @@ from PySide6.QtWidgets import (
     QFrame,
 )
 
+from app.localization import loc
+
 
 class AdjustmentSlider(QWidget):
     """A labeled slider with value display and optional decimal formatting."""
@@ -39,9 +41,9 @@ class AdjustmentSlider(QWidget):
 
         # Label + value row
         label_row = QHBoxLayout()
-        name_label = QLabel(label)
-        name_label.setStyleSheet("font-size: 12px; color: #a6adc8;")
-        label_row.addWidget(name_label)
+        self._name_label = QLabel(label)
+        self._name_label.setStyleSheet("font-size: 12px; color: #a6adc8;")
+        label_row.addWidget(self._name_label)
         label_row.addStretch()
 
         self._value_label = QLabel(self._format_value(default))
@@ -60,6 +62,9 @@ class AdjustmentSlider(QWidget):
         self._slider.valueChanged.connect(self._on_changed)
         self._slider.sliderReleased.connect(self.slider_released.emit)
         layout.addWidget(self._slider)
+
+    def set_label(self, text: str) -> None:
+        self._name_label.setText(text)
 
     def _format_value(self, value: int) -> str:
         if self._divisor != 1:
@@ -106,11 +111,11 @@ class AdjustmentsPanel(QWidget):
         layout.setSpacing(6)
 
         # Title
-        title = QLabel("🎨  Renk Ayarları")
-        title.setStyleSheet(
+        self._title_label = QLabel(loc("adj_panel_title"))
+        self._title_label.setStyleSheet(
             "font-size: 15px; font-weight: bold; color: #cdd6f4; padding-bottom: 4px;"
         )
-        layout.addWidget(title)
+        layout.addWidget(self._title_label)
 
         sep = QFrame()
         sep.setFrameShape(QFrame.Shape.HLine)
@@ -119,35 +124,35 @@ class AdjustmentsPanel(QWidget):
 
         # ── Brightness ──
         self._brightness = AdjustmentSlider(
-            "☀  Parlaklık", -100, 100, 0
+            loc("adj_brightness"), -100, 100, 0
         )
         self._brightness.value_changed.connect(self._schedule_update)
         layout.addWidget(self._brightness)
 
         # ── Contrast ──
         self._contrast = AdjustmentSlider(
-            "◑  Kontrast", -100, 100, 0
+            loc("adj_contrast"), -100, 100, 0
         )
         self._contrast.value_changed.connect(self._schedule_update)
         layout.addWidget(self._contrast)
 
         # ── Gamma ── (stored as 10..300 → 0.10..3.00)
         self._gamma = AdjustmentSlider(
-            "γ  Gamma", 10, 300, 100, divisor=100
+            loc("adj_gamma"), 10, 300, 100, divisor=100
         )
         self._gamma.value_changed.connect(self._schedule_update)
         layout.addWidget(self._gamma)
 
         # ── Sharpness / Netlik ── (0..100%)
         self._sharpness = AdjustmentSlider(
-            "🔍  Netlik (Keskinlik)", 0, 100, 0, suffix="%"
+            loc("adj_sharpness"), 0, 100, 0, suffix="%"
         )
         self._sharpness.value_changed.connect(self._schedule_update)
         layout.addWidget(self._sharpness)
 
         # ── Smart Auto Enhance Button ──
-        self._smart_btn = QPushButton("✨  Akıllı Ayarla")
-        self._smart_btn.setToolTip("İdeal kontrast, parlaklık ve gölge detayını otomatik uygular")
+        self._smart_btn = QPushButton(loc("adj_smart_btn"))
+        self._smart_btn.setToolTip(loc("adj_smart_tip"))
         self._smart_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         self._smart_btn.setStyleSheet(
             """
@@ -175,15 +180,15 @@ class AdjustmentsPanel(QWidget):
 
         # ── Buttons row: Reset & Save ──
         btn_row = QHBoxLayout()
-        reset_btn = QPushButton("↺  Sıfırla")
-        reset_btn.setToolTip("Tüm renk ayarlarını varsayılana döndür")
-        reset_btn.setCursor(Qt.CursorShape.PointingHandCursor)
-        reset_btn.clicked.connect(self.reset)
-        btn_row.addWidget(reset_btn)
+        self._reset_btn = QPushButton(loc("adj_reset_btn"))
+        self._reset_btn.setToolTip(loc("adj_reset_btn"))
+        self._reset_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        self._reset_btn.clicked.connect(self.reset)
+        btn_row.addWidget(self._reset_btn)
 
-        self._save_btn = QPushButton("💾  Kaydet")
+        self._save_btn = QPushButton(loc("adj_save_btn"))
         self._save_btn.setObjectName("accentButton")
-        self._save_btn.setToolTip("Ayarlanmış fotoğrafı kaydet")
+        self._save_btn.setToolTip(loc("adj_save_btn"))
         self._save_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         self._save_btn.clicked.connect(self.save_clicked.emit)
         btn_row.addWidget(self._save_btn)
@@ -202,6 +207,18 @@ class AdjustmentsPanel(QWidget):
         self._sharpness.slider_released.connect(self._emit_changes)
 
     # ── Public API ──────────────────────────────────────────────────────
+
+    def retranslate_ui(self) -> None:
+        """Update slider and button labels for active language."""
+        self._title_label.setText(loc("adj_panel_title"))
+        self._brightness.set_label(loc("adj_brightness"))
+        self._contrast.set_label(loc("adj_contrast"))
+        self._gamma.set_label(loc("adj_gamma"))
+        self._sharpness.set_label(loc("adj_sharpness"))
+        self._smart_btn.setText(loc("adj_smart_btn"))
+        self._smart_btn.setToolTip(loc("adj_smart_tip"))
+        self._reset_btn.setText(loc("adj_reset_btn"))
+        self._save_btn.setText(loc("adj_save_btn"))
 
     def set_save_visible(self, visible: bool) -> None:
         """Show or hide the Save button (e.g. visible for images, hidden for videos)."""

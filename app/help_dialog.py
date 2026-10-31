@@ -14,6 +14,7 @@ from PySide6.QtWidgets import (
 )
 from app import __version__, APP_NAME
 from app.updater import UpdateCheckWorker, UpdateDialog, UpdateInfo
+from app.localization import loc, get_localization
 
 
 class HelpDialog(QDialog):
@@ -21,7 +22,7 @@ class HelpDialog(QDialog):
 
     def __init__(self, parent=None) -> None:
         super().__init__(parent)
-        self.setWindowTitle(f"{APP_NAME} — Kullanım Kılavuzu ve Yardım")
+        self.setWindowTitle(f"{APP_NAME} — {loc('help_title')}")
         self.resize(760, 560)
         self.setMinimumSize(600, 420)
 
@@ -94,7 +95,7 @@ class HelpDialog(QDialog):
         title_icon.setStyleSheet("font-size: 24px;")
         header.addWidget(title_icon)
 
-        title_label = QLabel(f"<b>{APP_NAME} v{__version__}</b> — Kullanım Kılavuzu & Yardım")
+        title_label = QLabel(f"<b>{APP_NAME} v{__version__}</b> — {loc('help_title')}")
         title_label.setStyleSheet("font-size: 16px; color: #89b4fa;")
         header.addWidget(title_label)
         header.addStretch()
@@ -103,36 +104,32 @@ class HelpDialog(QDialog):
         # Tabs
         tabs = QTabWidget(self)
 
-        # Tab 1: Kısayol Tuşları & Kullanım
         tab_shortcuts = QTextBrowser()
         tab_shortcuts.setOpenExternalLinks(True)
         tab_shortcuts.setHtml(self._get_shortcuts_html())
-        tabs.addTab(tab_shortcuts, "⌨️ Kısayol Tuşları & Kılavuz")
+        tabs.addTab(tab_shortcuts, loc("tab_shortcuts"))
 
-        # Tab 2: Öne Çıkan Özellikler
         tab_features = QTextBrowser()
         tab_features.setOpenExternalLinks(True)
         tab_features.setHtml(self._get_features_html())
-        tabs.addTab(tab_features, "✨ Öne Çıkan Özellikler")
+        tabs.addTab(tab_features, loc("tab_features"))
 
-        # Tab 3: SSS (Sıkça Sorulan Sorular)
         tab_faq = QTextBrowser()
         tab_faq.setOpenExternalLinks(True)
         tab_faq.setHtml(self._get_faq_html())
-        tabs.addTab(tab_faq, "❓ SSS (Sıkça Sorulan Sorular)")
+        tabs.addTab(tab_faq, loc("tab_faq"))
 
-        # Tab 4: Hakkında
         tab_about = QTextBrowser()
         tab_about.setOpenExternalLinks(True)
         tab_about.setHtml(self._get_about_html())
-        tabs.addTab(tab_about, "ℹ️ Hakkında")
+        tabs.addTab(tab_about, loc("tab_about"))
 
         layout.addWidget(tabs)
 
         # Bottom Bar with Update Check & Close Button
         bottom_bar = QHBoxLayout()
 
-        self._check_update_btn = QPushButton("🔄  Güncellemeleri Denetle")
+        self._check_update_btn = QPushButton(loc("check_updates"))
         self._check_update_btn.setStyleSheet(
             """
             QPushButton {
@@ -156,7 +153,7 @@ class HelpDialog(QDialog):
         bottom_bar.addWidget(self._check_update_btn)
 
         bottom_bar.addStretch()
-        close_btn = QPushButton("Kapat")
+        close_btn = QPushButton(loc("close_btn"))
         close_btn.setObjectName("closeBtn")
         close_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         close_btn.clicked.connect(self.accept)
@@ -165,7 +162,7 @@ class HelpDialog(QDialog):
 
     def _manual_check_update(self) -> None:
         self._check_update_btn.setEnabled(False)
-        self._check_update_btn.setText("Denetleniyor...")
+        self._check_update_btn.setText(loc("checking_updates"))
 
         self._update_worker = UpdateCheckWorker(self)
         self._update_worker.finished_check.connect(self._on_manual_check_finished)
@@ -175,7 +172,7 @@ class HelpDialog(QDialog):
         self, success: bool, info: UpdateInfo, msg: str
     ) -> None:
         self._check_update_btn.setEnabled(True)
-        self._check_update_btn.setText("🔄  Güncellemeleri Denetle")
+        self._check_update_btn.setText(loc("check_updates"))
 
         if success and info:
             if info.is_newer:
@@ -184,15 +181,14 @@ class HelpDialog(QDialog):
             else:
                 QMessageBox.information(
                     self,
-                    "Güncelleme Kontrolü",
-                    f"Tebrikler! Zaten en güncel sürümü (v{__version__}) kullanıyorsunuz.",
+                    loc("check_updates"),
+                    loc("update_already_latest").format(__version__),
                 )
         else:
             QMessageBox.warning(
                 self,
-                "Güncelleme Kontrolü",
-                "Güncelleme sunucusuna bağlanılamadı.\n"
-                "Lütfen internet bağlantınızı kontrol edip tekrar deneyin.",
+                loc("check_updates"),
+                loc("update_failed"),
             )
 
     def _get_shortcuts_html(self) -> str:
@@ -206,6 +202,47 @@ class HelpDialog(QDialog):
             kbd { background-color: #313244; border: 1px solid #45475a; border-radius: 4px; padding: 2px 7px; color: #f9e2af; font-family: Consolas, monospace; font-size: 12px; font-weight: bold; }
         </style>
         """
+        if get_localization().current_language == "en":
+            return f"""
+            {css}
+            <h3>🖼️ Photo Viewing & Editing</h3>
+            <table>
+                <tr><th>Shortcut</th><th>Description</th></tr>
+                <tr><td><kbd>Mouse Wheel</kbd></td><td>Center-based zoom in / zoom out</td></tr>
+                <tr><td><kbd>Left Click Drag</kbd></td><td>Pan zoomed image</td></tr>
+                <tr><td><kbd>F</kbd></td><td>Fit image to window</td></tr>
+                <tr><td><kbd>0</kbd></td><td>Original 1:1 pixel size (100% Zoom)</td></tr>
+                <tr><td><kbd>R</kbd> / <kbd>L</kbd></td><td>Rotate 90° Clockwise / Counter-Clockwise</td></tr>
+                <tr><td><kbd>C</kbd></td><td>Toggle crop mode (interactive aspect ratios)</td></tr>
+                <tr><td><kbd>Ctrl + J</kbd></td><td>Color adjustments panel (Brightness, Contrast, Gamma, Sharpness)</td></tr>
+                <tr><td><kbd>Ctrl + Shift + U</kbd></td><td><b>Smart HD Upscale (2x / 4x Lanczos-4)</b></td></tr>
+                <tr><td><kbd>Delete</kbd></td><td>Send current file to Recycle Bin with confirmation</td></tr>
+            </table>
+
+            <h3>🎬 Video Playback & Editing</h3>
+            <table>
+                <tr><th>Shortcut</th><th>Description</th></tr>
+                <tr><td><kbd>Space</kbd></td><td>Play / Pause</td></tr>
+                <tr><td><kbd>E</kbd></td><td><b>✨ Live Smart Video Enhancement (Vibrant & Sharp Mode)</b></td></tr>
+                <tr><td><kbd>S</kbd></td><td><b>📸 Snapshot full-res frame from video</b></td></tr>
+                <tr><td><kbd>C</kbd></td><td>Video trim & crop panel</td></tr>
+                <tr><td><kbd>←</kbd> / <kbd>→</kbd></td><td>Seek 5 seconds backward / forward</td></tr>
+                <tr><td><kbd>↑</kbd> / <kbd>↓</kbd></td><td>Volume Up / Down</td></tr>
+                <tr><td><kbd>M</kbd></td><td>Mute / Unmute audio</td></tr>
+                <tr><td><kbd>1</kbd> .. <kbd>4</kbd></td><td>Playback Speed: 0.5x, 1.0x, 1.5x, 2.0x</td></tr>
+            </table>
+
+            <h3>🌐 General & Navigation</h3>
+            <table>
+                <tr><th>Shortcut</th><th>Description</th></tr>
+                <tr><td><kbd>Alt + ←</kbd> / <kbd>Alt + →</kbd></td><td>Previous / Next media file in directory</td></tr>
+                <tr><td><kbd>F11</kbd> / <kbd>Double Click</kbd></td><td><b>Smart Fullscreen Mode</b></td></tr>
+                <tr><td><kbd>Ctrl + O</kbd></td><td>Open File dialog</td></tr>
+                <tr><td><kbd>Ctrl + L</kbd></td><td>Playlist sidebar toggle</td></tr>
+                <tr><td><kbd>F1</kbd></td><td>Open this User Guide & Help dialog</td></tr>
+            </table>
+            """
+
         return f"""
         {css}
         <h3>🖼️ Fotoğraf Görüntüleme & Düzenleme</h3>
@@ -247,6 +284,51 @@ class HelpDialog(QDialog):
         """
 
     def _get_features_html(self) -> str:
+        if get_localization().current_language == "en":
+            return """
+            <style>
+                body { color: #cdd6f4; font-family: 'Segoe UI', sans-serif; }
+                .card { background-color: #262738; border-left: 4px solid #89b4fa; border-radius: 6px; padding: 10px 14px; margin-bottom: 12px; }
+                .card-title { font-weight: bold; color: #89b4fa; font-size: 14px; margin-bottom: 4px; }
+                .card-body { color: #cdd6f4; font-size: 12.5px; line-height: 1.5; }
+            </style>
+
+            <div class="card">
+                <div class="card-title">🛡️ 100% Embedded Codec Engine (Zero External Dependencies)</div>
+                <div class="card-body">
+                    All major video and image formats (HEVC/H.265, AV1, VP9, H.264, MPEG-4, ProRes, WebP, etc.) are decoded with built-in FFmpeg 7.1 and avcodec. No codec packs or Microsoft Store extensions required.
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-title">✨ Live Smart Video Enhancement (E key)</div>
+                <div class="card-body">
+                    Pressing <code>E</code> during video playback activates a real-time 4-stage processing engine: clears haze/fog, lifts dark shadows without blowing out highlights, and enriches colors for cinematic clarity.
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-title">🔍 Smart Photo Sharpness & Clarity</div>
+                <div class="card-body">
+                    The <code>Ctrl+J</code> panel features a <b>Sharpness</b> slider and <b>Smart Enhance</b> button to rescue soft or slightly out-of-focus photos using adaptive edge micro-contrast.
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-title">🖼️ 2x / 4x Smart HD Upscale (Lanczos-4)</div>
+                <div class="card-body">
+                    Upscale small or older images to 2x (HD) or 4x (Ultra HD) resolution without pixelation using intelligent edge-preserving Lanczos-4 filters.
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-title">📸 One-Click Video Snapshot (S key)</div>
+                <div class="card-body">
+                    Instantly save full-resolution lossless frames from any playing or paused video (1080p, 4K) directly to disk or clipboard.
+                </div>
+            </div>
+            """
+
         return """
         <style>
             body { color: #cdd6f4; font-family: 'Segoe UI', sans-serif; }
@@ -299,6 +381,31 @@ class HelpDialog(QDialog):
         """
 
     def _get_faq_html(self) -> str:
+        if get_localization().current_language == "en":
+            return """
+            <style>
+                body { color: #cdd6f4; font-family: 'Segoe UI', sans-serif; }
+                .q { color: #fbbf24; font-weight: bold; font-size: 13.5px; margin-top: 14px; margin-bottom: 4px; }
+                .a { color: #cdd6f4; font-size: 13px; line-height: 1.5; background-color: #262738; padding: 8px 12px; border-radius: 6px; }
+            </style>
+
+            <div class="q">❓ Question: Will HEVC/H.265 videos show a black screen on other computers?</div>
+            <div class="a">
+                <b>No.</b> Media Viewer features an embedded FFmpeg engine with CPU software decoder fallbacks. It plays smoothly on any system without extra codec packs.
+            </div>
+
+            <div class="q">❓ Question: Does "Smart Enhance" alter or damage the original file?</div>
+            <div class="a">
+                <b>Never.</b> Real-time enhancement is applied purely to the rendering pipeline on screen. The original file remains untouched.
+            </div>
+
+            <div class="q">❓ Question: Which formats are supported?</div>
+            <div class="a">
+                <b>Images:</b> JPG, JPEG, PNG, GIF, BMP, WEBP, TIFF, ICO, SVG.<br>
+                <b>Videos:</b> MP4, MKV, MOV, AVI, WEBM, FLV, TS, M4V, WMV.
+            </div>
+            """
+
         return """
         <style>
             body { color: #cdd6f4; font-family: 'Segoe UI', sans-serif; }
@@ -308,27 +415,12 @@ class HelpDialog(QDialog):
 
         <div class="q">❓ Soru: Başka bilgisayarlarda HEVC/H.265 videolarda siyah ekran olur mu?</div>
         <div class="a">
-            <b>Hayır, olmaz.</b> Media Viewer v1.1.1+ dahili FFmpeg motorunu ve CPU yazılım çözücüsünü doğrudan uygulama içine gömmüştür. Bilgisayarda kodek paketi veya donanım desteği olmasa dahi gömülü çözücümüz videoyu sorunsuz açar.
+            <b>Hayır, olmaz.</b> Media Viewer dahili FFmpeg motorunu ve CPU yazılım çözücüsünü doğrudan uygulama içine gömmüştür. Bilgisayarda kodek paketi olmasa dahi gömülü çözücümüz videoyu sorunsuz açar.
         </div>
 
         <div class="q">❓ Soru: "Akıllı İyileştirme" orijinal video veya fotoğraf dosyama zarar verir mi?</div>
         <div class="a">
-            <b>Kesinlikle hayır.</b> Canlı izleme sırasında yapılan iyileştirmeler tamamen ekrandaki gerçek zamanlı görüntü katmanına uygulanır, orijinal dosyanızı asla değiştirmez. Eğer iyileştirilmiş videoyu kaydetmek isterseniz sağ tıklayıp <i>"Videoyu İyileştirerek Kaydet"</i> seçeneğini kullanabilirsiniz.
-        </div>
-
-        <div class="q">❓ Soru: Resimleri HD Yapma (Upscale) nasıl çalışır?</div>
-        <div class="a">
-            Düşük çözünürlüklü fotoğrafları akıllı Lanczos-4 enterpolasyonu ve kenar keskinleştirme filtreleri kullanarak pikselleşme yaratmadan 2 katı veya 4 katı çözünürlüğe çıkarır. Böylece küçük fotoğraflar büyük ekranlarda çok daha net görünür.
-        </div>
-
-        <div class="q">❓ Soru: Videodan fotoğraf nasıl yakalayabilirim?</div>
-        <div class="a">
-            Videoyu oynatırken veya duraklattığınızda klavyenizden <b><code>S</code></b> tuşuna basmanız veya alttaki <b>📸 Kare Yakala</b> butonuna tıklamanız yeterlidir. O anki kare tam video çözünürlüğünde PNG/JPEG olarak kaydedilir.
-        </div>
-
-        <div class="q">❓ Soru: Yeni bir sürüm çıktığında nasıl haberdar olurum?</div>
-        <div class="a">
-            Media Viewer açıldığında arka planda sessizce GitHub sunucumuzu kontrol eder. Yeni bir sürüm yayınlandığında ekranın üst kısmında zarif bir <b>"🎉 Yeni Sürüm Yayınlandı"</b> bildirim çubuğu belirir ve tek tıkla yenilikleri görüp indirmenizi sağlar. Ayrıca bu pencerenin altındaki <b>"🔄 Güncellemeleri Denetle"</b> butonuna basarak da dilediğiniz an manuel kontrol yapabilirsiniz.
+            <b>Kesinlikle hayır.</b> Canlı izleme sırasında yapılan iyileştirmeler tamamen ekrandaki gerçek zamanlı görüntü katmanına uygulanır, orijinal dosyanızı asla değiştirmez.
         </div>
 
         <div class="q">❓ Soru: Hangi dosya formatları destekleniyor?</div>
@@ -339,6 +431,11 @@ class HelpDialog(QDialog):
         """
 
     def _get_about_html(self) -> str:
+        desc_tr = "Windows 10 ve 11 için geliştirilmiş, hafif, donanım hızlandırmalı ve %100 dahili kodek içeren modern fotoğraf ve video görüntüleyici."
+        desc_en = "Modern, lightweight, hardware-accelerated photo and video viewer with 100% embedded codecs for Windows 10 & 11."
+        desc = desc_en if get_localization().current_language == "en" else desc_tr
+        ver_label = f"Version {__version__} — Portable Edition" if get_localization().current_language == "en" else f"Sürüm {__version__} — Taşınabilir (Portable) Sürüm"
+
         return f"""
         <style>
             body {{ color: #cdd6f4; font-family: 'Segoe UI', sans-serif; text-align: center; padding-top: 20px; }}
@@ -350,13 +447,13 @@ class HelpDialog(QDialog):
         </style>
 
         <h2>Media Viewer</h2>
-        <div class="ver">Sürüm {__version__} — Taşınabilir (Portable) Sürüm</div>
+        <div class="ver">{ver_label}</div>
         <div class="desc">
-            Windows 10 ve 11 için geliştirilmiş, hafif, donanım hızlandırmalı ve %100 dahili kodek içeren modern fotoğraf ve video görüntüleyici.
+            {desc}
         </div>
         <p>
-            Geliştirici: <b>Erol Dizdar</b><br>
-            Proje Deposu: <a class="link" href="https://github.com/edizdar/MediaViewer">github.com/edizdar/MediaViewer</a>
+            Developer: <b>Erol Dizdar</b><br>
+            Repository: <a class="link" href="https://github.com/edizdar/MediaViewer">github.com/edizdar/MediaViewer</a>
         </p>
         <div class="footer">
             Python 3.10 &bull; PySide6 (Qt 6.8) &bull; FFmpeg 7.1 &bull; OpenCV &bull; Pillow

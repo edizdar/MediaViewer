@@ -10,6 +10,8 @@ from PySide6.QtWidgets import (
     QSizePolicy,
 )
 
+from app.localization import loc, get_localization
+
 
 def _separator() -> QFrame:
     """Create a vertical separator line."""
@@ -39,6 +41,7 @@ class TopToolbar(QWidget):
     fullscreen_clicked = Signal()
     playlist_toggled = Signal()
     help_clicked = Signal()
+    language_clicked = Signal()
 
     def __init__(self, parent=None) -> None:
         super().__init__(parent)
@@ -50,15 +53,15 @@ class TopToolbar(QWidget):
         layout.setSpacing(4)
 
         # Open file button
-        self._open_btn = QPushButton("📁  Dosya Aç")
+        self._open_btn = QPushButton(loc("open_file_btn"))
         self._open_btn.setObjectName("accentButton")
-        self._open_btn.setToolTip("Dosya Aç (Ctrl+O)")
+        self._open_btn.setToolTip(loc("open_file_tip"))
         self._open_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         self._open_btn.clicked.connect(self.open_file_clicked)
         layout.addWidget(self._open_btn)
 
         # Playlist toggle button
-        self._playlist_btn = _icon_button("📋", "Oynatma Listesi (Ctrl+L)")
+        self._playlist_btn = _icon_button("📋", loc("playlist_tip"))
         self._playlist_btn.clicked.connect(self.playlist_toggled)
         layout.addWidget(self._playlist_btn)
 
@@ -78,7 +81,7 @@ class TopToolbar(QWidget):
         # Navigation
         layout.addWidget(_separator())
 
-        self._prev_btn = _icon_button("◀", "Önceki Dosya (←)")
+        self._prev_btn = _icon_button("◀", loc("prev_tip"))
         self._prev_btn.clicked.connect(self.previous_clicked)
         layout.addWidget(self._prev_btn)
 
@@ -88,14 +91,14 @@ class TopToolbar(QWidget):
         self._counter_label.setMinimumWidth(60)
         layout.addWidget(self._counter_label)
 
-        self._next_btn = _icon_button("▶", "Sonraki Dosya (→)")
+        self._next_btn = _icon_button("▶", loc("next_tip"))
         self._next_btn.clicked.connect(self.next_clicked)
         layout.addWidget(self._next_btn)
 
         layout.addWidget(_separator())
 
         # Fullscreen button
-        self._fullscreen_btn = _icon_button("⛶", "Tam Ekran (F11)")
+        self._fullscreen_btn = _icon_button("⛶", loc("fullscreen_tip"))
         self._fullscreen_btn.setStyleSheet(
             "QPushButton { font-size: 20px; min-width: 36px; min-height: 36px; }"
         )
@@ -104,10 +107,34 @@ class TopToolbar(QWidget):
 
         layout.addWidget(_separator())
 
+        # Language toggle button
+        curr_lang = get_localization().current_language.upper()
+        self._lang_btn = _icon_button(f"🌐 {curr_lang}", loc("lang_tip"))
+        self._lang_btn.setStyleSheet(
+            "QPushButton { font-weight: bold; font-size: 13px; min-width: 48px; padding: 2px 6px; }"
+        )
+        self._lang_btn.clicked.connect(self.language_clicked)
+        layout.addWidget(self._lang_btn)
+
+        layout.addWidget(_separator())
+
         # Help / Guide button
-        self._help_btn = _icon_button("❓", "Kullanım Kılavuzu & Yardım (F1)")
+        self._help_btn = _icon_button("❓", loc("help_tip"))
         self._help_btn.clicked.connect(self.help_clicked)
         layout.addWidget(self._help_btn)
+
+    def retranslate_ui(self) -> None:
+        """Update tooltips and labels when language changes."""
+        lang = get_localization().current_language.upper()
+        self._open_btn.setText(loc("open_file_btn"))
+        self._open_btn.setToolTip(loc("open_file_tip"))
+        self._playlist_btn.setToolTip(loc("playlist_tip"))
+        self._prev_btn.setToolTip(loc("prev_tip"))
+        self._next_btn.setToolTip(loc("next_tip"))
+        self._fullscreen_btn.setToolTip(loc("fullscreen_tip"))
+        self._lang_btn.setText(f"🌐 {lang}")
+        self._lang_btn.setToolTip(loc("lang_tip"))
+        self._help_btn.setToolTip(loc("help_tip"))
 
     def set_file_info(self, name: str, index: int, total: int) -> None:
         """Update the file name and navigation counter."""
@@ -153,7 +180,7 @@ class BottomToolbar(QWidget):
         img_layout.setSpacing(4)
 
         # Zoom controls
-        self._zoom_out_btn = _icon_button("➖", "Uzaklaştır (Ctrl+-)")
+        self._zoom_out_btn = _icon_button("➖", loc("zoom_out_tip"))
         self._zoom_out_btn.clicked.connect(self.zoom_out_clicked)
         img_layout.addWidget(self._zoom_out_btn)
 
@@ -162,41 +189,41 @@ class BottomToolbar(QWidget):
         self._zoom_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         img_layout.addWidget(self._zoom_label)
 
-        self._zoom_in_btn = _icon_button("➕", "Yakınlaştır (Ctrl++)")
+        self._zoom_in_btn = _icon_button("➕", loc("zoom_in_tip"))
         self._zoom_in_btn.clicked.connect(self.zoom_in_clicked)
         img_layout.addWidget(self._zoom_in_btn)
 
         img_layout.addWidget(_separator())
 
         # Fit / Original
-        self._fit_btn = _icon_button("⊞", "Pencereye Sığdır (Ctrl+F)")
+        self._fit_btn = _icon_button("⊞", loc("fit_tip"))
         self._fit_btn.clicked.connect(self.fit_clicked)
         img_layout.addWidget(self._fit_btn)
 
-        self._original_btn = _icon_button("1:1", "Orijinal Boyut (Ctrl+0)")
+        self._original_btn = _icon_button("1:1", loc("original_tip"))
         self._original_btn.clicked.connect(self.original_clicked)
         img_layout.addWidget(self._original_btn)
 
         img_layout.addWidget(_separator())
 
         # Rotate
-        self._rotate_ccw_btn = _icon_button("↺", "Sola Döndür (Shift+R)")
+        self._rotate_ccw_btn = _icon_button("↺", loc("rotate_ccw_tip"))
         self._rotate_ccw_btn.clicked.connect(self.rotate_ccw_clicked)
         img_layout.addWidget(self._rotate_ccw_btn)
 
-        self._rotate_cw_btn = _icon_button("↻", "Sağa Döndür (R)")
+        self._rotate_cw_btn = _icon_button("↻", loc("rotate_cw_tip"))
         self._rotate_cw_btn.clicked.connect(self.rotate_cw_clicked)
         img_layout.addWidget(self._rotate_cw_btn)
 
         img_layout.addWidget(_separator())
 
         # Crop button
-        self._crop_btn = _icon_button("✂", "Fotoğrafı Kırp (C)")
+        self._crop_btn = _icon_button("✂", loc("crop_tip"))
         self._crop_btn.clicked.connect(self.crop_clicked)
         img_layout.addWidget(self._crop_btn)
 
         # HD Upscale button
-        self._upscale_btn = _icon_button("🖼️ HD", "Resmi HD Yap ve Büyüt (2x / 4x Smart Upscale)")
+        self._upscale_btn = _icon_button("🖼️ HD", loc("upscale_tip"))
         self._upscale_btn.clicked.connect(self.upscale_clicked)
         img_layout.addWidget(self._upscale_btn)
 
@@ -216,16 +243,29 @@ class BottomToolbar(QWidget):
         layout.addWidget(_separator())
 
         # Delete button
-        self._delete_btn = _icon_button("🗑", "Çöp Kutusuna Gönder (Delete)")
+        self._delete_btn = _icon_button("🗑", loc("delete_tip"))
         self._delete_btn.clicked.connect(self.delete_clicked)
         layout.addWidget(self._delete_btn)
 
         layout.addWidget(_separator())
 
         # Color adjustments toggle button
-        self._adj_btn = _icon_button("🎨", "Renk Ayarları (Ctrl+J)")
+        self._adj_btn = _icon_button("🎨", loc("adj_tip"))
         self._adj_btn.clicked.connect(self.adjustments_toggled)
         layout.addWidget(self._adj_btn)
+
+    def retranslate_ui(self) -> None:
+        """Update tooltips when language changes."""
+        self._zoom_out_btn.setToolTip(loc("zoom_out_tip"))
+        self._zoom_in_btn.setToolTip(loc("zoom_in_tip"))
+        self._fit_btn.setToolTip(loc("fit_tip"))
+        self._original_btn.setToolTip(loc("original_tip"))
+        self._rotate_ccw_btn.setToolTip(loc("rotate_ccw_tip"))
+        self._rotate_cw_btn.setToolTip(loc("rotate_cw_tip"))
+        self._crop_btn.setToolTip(loc("crop_tip"))
+        self._upscale_btn.setToolTip(loc("upscale_tip"))
+        self._delete_btn.setToolTip(loc("delete_tip"))
+        self._adj_btn.setToolTip(loc("adj_tip"))
 
     def set_zoom_level(self, factor: float) -> None:
         """Update the zoom percentage display."""
