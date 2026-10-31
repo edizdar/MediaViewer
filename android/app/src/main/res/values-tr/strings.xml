@@ -9,9 +9,9 @@
     <string name="refresh">Yenile</string>
     <string name="language">Dil</string>
     <string name="select_language">Dil Seçimi</string>
-    <string name="lang_system">Sistem Dili (Varsayılan)</string>
-    <string name="lang_tr">Türkçe</string>
-    <string name="lang_en">English</string>
+    <string name="lang_system">Otomatik (Sistem Dili)</string>
+    <string name="lang_tr">Türkçe (TR)</string>
+    <string name="lang_en">English (EN)</string>
     <string name="permission_required_title">Medya Erişimi Gerekli</string>
     <string name="permission_required_desc">Cihazınızdaki fotoğraf, video ve ses dosyalarını görüntülemek ve oynatmak için medya izni gereklidir.</string>
     <string name="grant_permission">İzin Ver</string>
@@ -62,4 +62,12 @@
     <string name="rotate_left">Sola Döndür</string>
     <string name="rotate_right">Sağa Döndür</string>
     <string name="flip_horizontal">Yatay Aynala</string>
+    <string name="update_available_title">Yeni Sürüm Yayınlandı!</string>
+    <string name="update_available_banner">🎉 Media Viewer %s yayınlandı</string>
+    <string name="update_download">İndir</string>
+    <string name="update_later">Daha Sonra</string>
+    <string name="check_updates">Güncellemeleri Denetle</string>
+    <string name="checking_updates">Güncellemeler denetleniyor...</string>
+    <string name="already_latest_version">Zaten en güncel sürümü kullanıyorsunuz.</string>
+    <string name="update_check_failed">Güncelleme sunucusuna bağlanılamadı.</string>
 </resources>

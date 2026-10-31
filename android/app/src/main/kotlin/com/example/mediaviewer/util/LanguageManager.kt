@@ -2,6 +2,7 @@ package com.example.mediaviewer.util
 
 import android.content.Context
 import android.content.res.Configuration
+import android.content.res.Resources
 import android.os.Build
 import android.os.LocaleList
 import androidx.compose.runtime.State
@@ -18,6 +19,7 @@ object LanguageManager {
     fun init(context: Context) {
         val saved = getSavedLanguage(context)
         _currentLanguageState.value = saved
+        applyLocale(context, saved)
     }
 
     fun getSavedLanguage(context: Context): String {
@@ -32,11 +34,20 @@ object LanguageManager {
         applyLocale(context, langCode)
     }
 
+    fun getSystemLocale(): Locale {
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+            Resources.getSystem().configuration.locales.get(0) ?: Locale.getDefault()
+        } else {
+            @Suppress("DEPRECATION")
+            Resources.getSystem().configuration.locale ?: Locale.getDefault()
+        }
+    }
+
     fun applyLocale(context: Context, langCode: String) {
         val locale = when (langCode) {
-            "tr" -> Locale("tr", "TR")
-            "en" -> Locale("en", "US")
-            else -> Locale.getDefault()
+            "tr" -> Locale.forLanguageTag("tr-TR")
+            "en" -> Locale.forLanguageTag("en-US")
+            else -> getSystemLocale()
         }
         Locale.setDefault(locale)
 
@@ -45,8 +56,10 @@ object LanguageManager {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
             config.setLocales(LocaleList(locale))
         } else {
+            @Suppress("DEPRECATION")
             config.setLocale(locale)
         }
+        @Suppress("DEPRECATION")
         resources.updateConfiguration(config, resources.displayMetrics)
     }
 }

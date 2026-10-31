@@ -31,6 +31,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Audiotrack
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.FolderOpen
 import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.Language
@@ -41,6 +42,8 @@ import androidx.compose.material.icons.filled.Videocam
 import com.example.mediaviewer.ui.dialogs.LanguageSelectionDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
@@ -53,6 +56,7 @@ import androidx.compose.material3.ScrollableTabRow
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
@@ -61,8 +65,15 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.core.content.ContextCompat
+import android.widget.Toast
+import com.example.mediaviewer.BuildConfig
+import com.example.mediaviewer.util.AppUpdateInfo
+import com.example.mediaviewer.util.UpdateChecker
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -135,6 +146,21 @@ fun GalleryScreen(
     }
 
     var showLanguageDialog by remember { mutableStateOf(false) }
+    var updateInfo by remember { mutableStateOf<AppUpdateInfo?>(null) }
+    var showUpdateBanner by remember { mutableStateOf(false) }
+    val coroutineScope = rememberCoroutineScope()
+
+    // Automatic silent background update check (2.5s after launch)
+    LaunchedEffect(Unit) {
+        delay(2500)
+        try {
+            val info = UpdateChecker.checkForUpdates(BuildConfig.VERSION_NAME)
+            if (info != null && info.isNewer) {
+                updateInfo = info
+                showUpdateBanner = true
+            }
+        } catch (_: Exception) {}
+    }
 
     Scaffold(
         containerColor = DarkBackground,
@@ -164,7 +190,7 @@ fun GalleryScreen(
                             )
                             if (state.mediaList.isNotEmpty()) {
                                 Text(
-                                    text = "${state.mediaList.size} medya ögesi",
+                                    text = stringResource(R.string.media_count_format, state.mediaList.size),
                                     style = MaterialTheme.typography.bodySmall.copy(
                                         color = TextSecondary,
                                         fontSize = 11.sp
@@ -211,6 +237,54 @@ fun GalleryScreen(
                 .fillMaxSize()
                 .padding(paddingValues)
         ) {
+            // Update notification banner (when new version published on GitHub)
+            if (showUpdateBanner && updateInfo != null) {
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 12.dp, vertical = 6.dp),
+                    colors = CardDefaults.cardColors(containerColor = Color(0xFF1E3A8A)),
+                    shape = RoundedCornerShape(10.dp)
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 12.dp, vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = stringResource(R.string.update_available_banner, updateInfo!!.tagName),
+                            color = Color.White,
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.weight(1f)
+                        )
+                        TextButton(
+                            onClick = {
+                                UpdateChecker.openDownloadUrl(context, updateInfo!!.downloadUrl)
+                            }
+                        ) {
+                            Text(
+                                text = stringResource(R.string.update_download),
+                                color = AccentCyan,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                        IconButton(
+                            onClick = { showUpdateBanner = false },
+                            modifier = Modifier.size(28.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Close,
+                                contentDescription = stringResource(R.string.close),
+                                tint = Color.White.copy(alpha = 0.7f),
+                                modifier = Modifier.size(16.dp)
+                            )
+                        }
+                    }
+                }
+            }
+
             // Filter Tabs
             FilterTabBar(
                 currentFilter = state.currentFilter,
@@ -280,6 +354,20 @@ fun GalleryScreen(
                 onLanguageSelected = {
                     showLanguageDialog = false
                     viewModel.loadMedia(context)
+                },
+                onCheckUpdates = {
+                    coroutineScope.launch {
+                        Toast.makeText(context, context.getString(R.string.checking_updates), Toast.LENGTH_SHORT).show()
+                        val info = UpdateChecker.checkForUpdates(BuildConfig.VERSION_NAME)
+                        if (info != null && info.isNewer) {
+                            updateInfo = info
+                            showUpdateBanner = true
+                        } else if (info != null) {
+                            Toast.makeText(context, context.getString(R.string.already_latest_version), Toast.LENGTH_LONG).show()
+                        } else {
+                            Toast.makeText(context, context.getString(R.string.update_check_failed), Toast.LENGTH_LONG).show()
+                        }
+                    }
                 }
             )
         }

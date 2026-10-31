@@ -19,6 +19,7 @@ from PySide6.QtWidgets import (
 )
 
 from app import __version__, APP_NAME
+from app.localization import loc
 
 REPO_URL = "https://api.github.com/repos/edizdar/MediaViewer/releases/latest"
 RELEASE_PAGE_URL = "https://github.com/edizdar/MediaViewer/releases"
@@ -112,7 +113,7 @@ class UpdateDialog(QDialog):
     def __init__(self, info: UpdateInfo, parent=None) -> None:
         super().__init__(parent)
         self._info = info
-        self.setWindowTitle("Yeni Sürüm Mevcut!")
+        self.setWindowTitle(loc("update_dialog_title"))
         self.resize(580, 440)
 
         self.setStyleSheet(
@@ -178,11 +179,11 @@ class UpdateDialog(QDialog):
 
         title_box = QVBoxLayout()
         title_box.setSpacing(2)
-        title = QLabel(f"Yeni Bir Sürüm Yayınlandı: {info.tag_name}")
+        title = QLabel(loc("update_dialog_header").format(info.tag_name))
         title.setObjectName("updateTitle")
         title_box.addWidget(title)
 
-        ver = QLabel(f"Mevcut Sürüm: v{__version__}  →  <b>Yeni Sürüm: {info.tag_name}</b>")
+        ver = QLabel(loc("update_dialog_sub").format(__version__, info.tag_name))
         ver.setObjectName("verLabel")
         title_box.addWidget(ver)
         top_row.addLayout(title_box)
@@ -190,7 +191,7 @@ class UpdateDialog(QDialog):
         layout.addLayout(top_row)
 
         # Changelog Body
-        body_label = QLabel("<b>Yenilikler ve İyileştirmeler:</b>")
+        body_label = QLabel(loc("update_dialog_notes"))
         layout.addWidget(body_label)
 
         browser = QTextBrowser()
@@ -204,13 +205,13 @@ class UpdateDialog(QDialog):
         btn_layout = QHBoxLayout()
         btn_layout.addStretch()
 
-        later_btn = QPushButton("Daha Sonra")
+        later_btn = QPushButton(loc("update_dialog_later"))
         later_btn.setObjectName("laterBtn")
         later_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         later_btn.clicked.connect(self.reject)
         btn_layout.addWidget(later_btn)
 
-        download_btn = QPushButton("📥  Yeni Sürümü İndir")
+        download_btn = QPushButton(loc("update_dialog_dl_btn"))
         download_btn.setObjectName("downloadBtn")
         download_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         download_btn.clicked.connect(self._on_download_clicked)
@@ -220,7 +221,7 @@ class UpdateDialog(QDialog):
 
     def _format_changelog_html(self, text: str) -> str:
         if not text:
-            return "<i>Bu sürüm için detaylı not belirtilmemiş.</i>"
+            return loc("update_dialog_no_notes")
         html = text.replace("\n", "<br>")
         # bold
         html = re.sub(r"\*\*(.*?)\*\*", r"<b>\1</b>", html)
@@ -297,21 +298,21 @@ class UpdateNotificationBanner(QFrame):
         layout.setSpacing(10)
 
         # Message
-        self._msg_label = QLabel("🎉  <b>Media Viewer'ın yeni bir sürümü mevcut!</b>")
+        self._msg_label = QLabel()
         self._msg_label.setObjectName("bannerText")
         layout.addWidget(self._msg_label)
 
         layout.addStretch()
 
         # View details button
-        self._details_btn = QPushButton("📋 Yenilikleri Gör")
+        self._details_btn = QPushButton(loc("update_banner_details"))
         self._details_btn.setObjectName("secondaryBtn")
         self._details_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         self._details_btn.clicked.connect(self._on_details_clicked)
         layout.addWidget(self._details_btn)
 
         # Quick download button
-        self._download_btn = QPushButton("📥 Hemen İndir")
+        self._download_btn = QPushButton(loc("update_banner_download"))
         self._download_btn.setObjectName("actionBtn")
         self._download_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         self._download_btn.clicked.connect(self._on_download_clicked)
@@ -328,8 +329,10 @@ class UpdateNotificationBanner(QFrame):
     def show_update(self, info: UpdateInfo) -> None:
         self._info = info
         self._msg_label.setText(
-            f"🎉  <b>Media Viewer {info.tag_name} yayınlandı!</b>  (Mevcut: v{__version__})"
+            loc("update_banner_msg").format(info.tag_name, __version__)
         )
+        self._details_btn.setText(loc("update_banner_details"))
+        self._download_btn.setText(loc("update_banner_download"))
         self.show()
 
     def _on_details_clicked(self) -> None:

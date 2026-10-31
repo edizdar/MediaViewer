@@ -108,10 +108,9 @@ class TopToolbar(QWidget):
         layout.addWidget(_separator())
 
         # Language toggle button
-        curr_lang = get_localization().current_language.upper()
-        self._lang_btn = _icon_button(f"🌐 {curr_lang}", loc("lang_tip"))
+        self._lang_btn = _icon_button(self._get_lang_btn_text(), loc("lang_tip"))
         self._lang_btn.setStyleSheet(
-            "QPushButton { font-weight: bold; font-size: 13px; min-width: 48px; padding: 2px 6px; }"
+            "QPushButton { font-weight: bold; font-size: 12px; min-width: 52px; padding: 2px 6px; }"
         )
         self._lang_btn.clicked.connect(self.language_clicked)
         layout.addWidget(self._lang_btn)
@@ -123,16 +122,22 @@ class TopToolbar(QWidget):
         self._help_btn.clicked.connect(self.help_clicked)
         layout.addWidget(self._help_btn)
 
+    def _get_lang_btn_text(self) -> str:
+        loc_mgr = get_localization()
+        lang = loc_mgr.current_language.upper()
+        if loc_mgr.mode == "auto":
+            return f"🌐 AUTO ({lang})"
+        return f"🌐 {lang}"
+
     def retranslate_ui(self) -> None:
         """Update tooltips and labels when language changes."""
-        lang = get_localization().current_language.upper()
         self._open_btn.setText(loc("open_file_btn"))
         self._open_btn.setToolTip(loc("open_file_tip"))
         self._playlist_btn.setToolTip(loc("playlist_tip"))
         self._prev_btn.setToolTip(loc("prev_tip"))
         self._next_btn.setToolTip(loc("next_tip"))
         self._fullscreen_btn.setToolTip(loc("fullscreen_tip"))
-        self._lang_btn.setText(f"🌐 {lang}")
+        self._lang_btn.setText(self._get_lang_btn_text())
         self._lang_btn.setToolTip(loc("lang_tip"))
         self._help_btn.setToolTip(loc("help_tip"))
 

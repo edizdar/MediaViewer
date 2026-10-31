@@ -682,12 +682,12 @@ class MainWindow(QMainWindow):
         dlg.exec()
 
     def _toggle_language(self) -> None:
-        """Toggle active language between Turkish and English and refresh UI."""
+        """Toggle active language between Auto -> EN -> TR -> Auto and refresh UI."""
         get_localization().toggle_language()
         self._top_toolbar.retranslate_ui()
         self._bottom_toolbar.retranslate_ui()
         self._retranslate_ui()
-        self._show_toast(loc("toast_lang"))
+        self._show_toast(get_localization().get_toast_message())
 
     def _retranslate_ui(self) -> None:
         """Update window title and child texts on language change."""

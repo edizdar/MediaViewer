@@ -9,9 +9,9 @@
     <string name="refresh">Refresh</string>
     <string name="language">Language</string>
     <string name="select_language">Select Language</string>
-    <string name="lang_system">System Default</string>
-    <string name="lang_tr">Türkçe</string>
-    <string name="lang_en">English</string>
+    <string name="lang_system">Auto (System Default)</string>
+    <string name="lang_tr">Türkçe (TR)</string>
+    <string name="lang_en">English (EN)</string>
     <string name="permission_required_title">Media Access Required</string>
     <string name="permission_required_desc">Permission is required to view and play photos, videos, and audio on your device.</string>
     <string name="grant_permission">Grant Permission</string>
@@ -62,4 +62,12 @@
     <string name="rotate_left">Rotate Left</string>
     <string name="rotate_right">Rotate Right</string>
     <string name="flip_horizontal">Flip Horizontal</string>
+    <string name="update_available_title">New Version Available!</string>
+    <string name="update_available_banner">🎉 Media Viewer %s is available</string>
+    <string name="update_download">Download</string>
+    <string name="update_later">Later</string>
+    <string name="check_updates">Check for Updates</string>
+    <string name="checking_updates">Checking for updates...</string>
+    <string name="already_latest_version">You are already using the latest version.</string>
+    <string name="update_check_failed">Could not connect to update server.</string>
 </resources>

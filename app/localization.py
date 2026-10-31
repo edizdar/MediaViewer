@@ -6,6 +6,32 @@ from typing import Callable, Optional
 
 CONFIG_FILE = Path.home() / ".mediaviewer_config.json"
 
+
+def detect_system_language() -> str:
+    """Detect Windows system language. Returns 'tr' if Turkish, else 'en'."""
+    # 1. Direct Windows Win32 API check via ctypes
+    try:
+        import ctypes
+        lang_id = ctypes.windll.kernel32.GetUserDefaultUILanguage()
+        # Primary language ID is lower 10 bits: 0x1F is LANG_TURKISH
+        if (lang_id & 0x3FF) == 0x1F:
+            return "tr"
+        return "en"
+    except Exception:
+        pass
+
+    # 2. Python locale fallback
+    try:
+        import locale
+        loc_val = locale.getdefaultlocale()
+        if loc_val and loc_val[0] and loc_val[0].lower().startswith("tr"):
+            return "tr"
+    except Exception:
+        pass
+
+    return "en"
+
+
 STRINGS = {
     "tr": {
         "open_file_btn": "📁  Dosya Aç",
@@ -15,7 +41,7 @@ STRINGS = {
         "next_tip": "Sonraki Dosya (→)",
         "fullscreen_tip": "Tam Ekran (F11)",
         "help_tip": "Kullanım Kılavuzu & Yardım (F1)",
-        "lang_tip": "Dili Değiştir (TR / EN)",
+        "lang_tip": "Dili Değiştir (Otomatik / TR / EN)",
         "zoom_out_tip": "Uzaklaştır (Ctrl+-)",
         "zoom_in_tip": "Yakınlaştır (Ctrl++)",
         "fit_tip": "Pencereye Sığdır (Ctrl+F)",
@@ -41,7 +67,9 @@ STRINGS = {
         "image_load_failed": "Fotoğraf yüklenemedi:\n{}",
         "window_title": "Media Viewer",
         "no_file_open": "Açık Dosya Yok",
-        "toast_lang": "Dil: Türkçe 🇹🇷",
+        "toast_lang_tr": "Dil: Türkçe (TR)",
+        "toast_lang_en": "Dil: English (EN)",
+        "toast_lang_auto": "Dil: Otomatik (Sistem: {})",
         "adj_panel_title": "🎨  Renk Ayarları",
         "adj_brightness": "☀  Parlaklık",
         "adj_contrast": "◑  Kontrast",
@@ -61,6 +89,16 @@ STRINGS = {
         "update_already_latest": "Tebrikler! Zaten en güncel sürümü (v{}) kullanıyorsunuz.",
         "update_failed": "Güncelleme sunucusuna bağlanılamadı.\nLütfen internet bağlantınızı kontrol edip tekrar deneyin.",
         "close_btn": "Kapat",
+        "update_banner_msg": "🎉  <b>Media Viewer {} yayınlandı!</b>  (Mevcut: v{})",
+        "update_banner_details": "📋 Yenilikleri Gör",
+        "update_banner_download": "📥 Hemen İndir",
+        "update_dialog_title": "Yeni Sürüm Mevcut!",
+        "update_dialog_header": "Yeni Bir Sürüm Yayınlandı: {}",
+        "update_dialog_sub": "Mevcut Sürüm: v{}  →  <b>Yeni Sürüm: {}</b>",
+        "update_dialog_notes": "<b>Yenilikler ve İyileştirmeler:</b>",
+        "update_dialog_later": "Daha Sonra",
+        "update_dialog_dl_btn": "📥  Yeni Sürümü İndir",
+        "update_dialog_no_notes": "<i>Bu sürüm için detaylı not belirtilmemiş.</i>",
     },
     "en": {
         "open_file_btn": "📁  Open File",
@@ -70,7 +108,7 @@ STRINGS = {
         "next_tip": "Next File (→)",
         "fullscreen_tip": "Fullscreen (F11)",
         "help_tip": "User Guide & Help (F1)",
-        "lang_tip": "Switch Language (TR / EN)",
+        "lang_tip": "Switch Language (Auto / TR / EN)",
         "zoom_out_tip": "Zoom Out (Ctrl+-)",
         "zoom_in_tip": "Zoom In (Ctrl++)",
         "fit_tip": "Fit to Window (Ctrl+F)",
@@ -96,7 +134,9 @@ STRINGS = {
         "image_load_failed": "Failed to load image:\n{}",
         "window_title": "Media Viewer",
         "no_file_open": "No File Open",
-        "toast_lang": "Language: English 🇬🇧",
+        "toast_lang_tr": "Language: Turkish (TR)",
+        "toast_lang_en": "Language: English (EN)",
+        "toast_lang_auto": "Language: Auto (System: {})",
         "adj_panel_title": "🎨  Color Adjustments",
         "adj_brightness": "☀  Brightness",
         "adj_contrast": "◑  Contrast",
@@ -116,6 +156,16 @@ STRINGS = {
         "update_already_latest": "Congratulations! You are already using the latest version (v{}).",
         "update_failed": "Could not connect to the update server.\nPlease check your internet connection and try again.",
         "close_btn": "Close",
+        "update_banner_msg": "🎉  <b>Media Viewer {} is available!</b>  (Current: v{})",
+        "update_banner_details": "📋 View Details",
+        "update_banner_download": "📥 Download Now",
+        "update_dialog_title": "New Version Available!",
+        "update_dialog_header": "A New Version Has Been Released: {}",
+        "update_dialog_sub": "Current Version: v{}  →  <b>New Version: {}</b>",
+        "update_dialog_notes": "<b>What's New & Improvements:</b>",
+        "update_dialog_later": "Later",
+        "update_dialog_dl_btn": "📥  Download New Version",
+        "update_dialog_no_notes": "<i>No detailed release notes provided for this version.</i>",
     }
 }
 
@@ -126,47 +176,77 @@ class LocalizationManager:
     def __new__(cls) -> "LocalizationManager":
         if cls._instance is None:
             cls._instance = super().__new__(cls)
-            cls._instance._lang = "tr"
+            cls._instance._mode = "auto"  # "auto", "tr", "en"
             cls._instance._listeners: list[Callable[[str], None]] = []
             cls._instance._load_config()
         return cls._instance
 
     @property
+    def mode(self) -> str:
+        """Configured mode: 'auto', 'tr', or 'en'."""
+        return self._mode
+
+    @property
     def current_language(self) -> str:
-        return self._lang
+        """Active language code: 'tr' or 'en'."""
+        if self._mode == "auto":
+            return detect_system_language()
+        return self._mode
 
     def _load_config(self) -> None:
         try:
             if CONFIG_FILE.exists():
                 with open(CONFIG_FILE, "r", encoding="utf-8") as f:
                     data = json.load(f)
-                    self._lang = data.get("language", "tr")
+                    self._mode = data.get("language", "auto")
+                    if self._mode not in ("auto", "tr", "en"):
+                        self._mode = "auto"
         except Exception:
-            self._lang = "tr"
+            self._mode = "auto"
 
     def _save_config(self) -> None:
         try:
             with open(CONFIG_FILE, "w", encoding="utf-8") as f:
-                json.dump({"language": self._lang}, f, indent=2)
+                json.dump({"language": self._mode}, f, indent=2)
         except Exception:
             pass
 
-    def set_language(self, lang: str) -> None:
-        if lang not in ("tr", "en"):
-            lang = "tr"
-        if self._lang != lang:
-            self._lang = lang
+    def set_mode(self, mode: str) -> None:
+        if mode not in ("auto", "tr", "en"):
+            mode = "auto"
+        if self._mode != mode:
+            self._mode = mode
             self._save_config()
             for listener in list(self._listeners):
                 try:
-                    listener(self._lang)
+                    listener(self.current_language)
                 except Exception:
                     pass
 
     def toggle_language(self) -> str:
-        new_lang = "en" if self._lang == "tr" else "tr"
-        self.set_language(new_lang)
-        return new_lang
+        """Cycle between Auto -> EN -> TR -> Auto."""
+        cur_lang = self.current_language
+        if self._mode == "auto":
+            # If auto currently picked tr, switch to explicit en; if en, switch to explicit tr
+            new_mode = "en" if cur_lang == "tr" else "tr"
+        elif self._mode == "en":
+            new_mode = "tr"
+        elif self._mode == "tr":
+            new_mode = "auto"
+        else:
+            new_mode = "auto"
+
+        self.set_mode(new_mode)
+        return self.current_language
+
+    def get_toast_message(self) -> str:
+        cur = self.current_language.upper()
+        if self._mode == "auto":
+            return self.get("toast_lang_auto").format(cur)
+        elif self._mode == "tr":
+            return self.get("toast_lang_tr")
+        else:
+            return self.get("toast_lang_en")
 
     def add_listener(self, callback: Callable[[str], None]) -> None:
         if callback not in self._listeners:
@@ -177,14 +257,15 @@ class LocalizationManager:
             self._listeners.remove(callback)
 
     def get(self, key: str, default: str = "") -> str:
-        return STRINGS.get(self._lang, {}).get(key, STRINGS["tr"].get(key, default or key))
+        lang = self.current_language
+        return STRINGS.get(lang, {}).get(key, STRINGS["tr"].get(key, default or key))
 
 
 _loc = LocalizationManager()
 
 
 def loc(key: str, default: str = "") -> str:
-    """Get localized text for the current language."""
+    """Get localized text for the active language."""
     return _loc.get(key, default)
 
 

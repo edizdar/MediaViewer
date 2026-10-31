@@ -5,11 +5,15 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Divider
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.RadioButtonDefaults
 import androidx.compose.material3.Text
@@ -32,15 +36,16 @@ import com.example.mediaviewer.util.LanguageManager
 @Composable
 fun LanguageSelectionDialog(
     onDismiss: () -> Unit,
-    onLanguageSelected: (String) -> Unit
+    onLanguageSelected: (String) -> Unit,
+    onCheckUpdates: (() -> Unit)? = null
 ) {
     val context = LocalContext.current
     val currentLang = LanguageManager.currentLanguageState.value
 
     val options = listOf(
         "system" to stringResource(R.string.lang_system),
-        "tr" to "Türkçe 🇹🇷",
-        "en" to "English 🇬🇧"
+        "tr" to stringResource(R.string.lang_tr),
+        "en" to stringResource(R.string.lang_en)
     )
 
     AlertDialog(
@@ -86,6 +91,25 @@ fun LanguageSelectionDialog(
                             color = TextPrimary,
                             fontSize = 15.sp,
                             fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
+                        )
+                    }
+                }
+
+                if (onCheckUpdates != null) {
+                    Spacer(modifier = Modifier.height(12.dp))
+                    HorizontalDivider(color = TextSecondary.copy(alpha = 0.2f))
+                    Spacer(modifier = Modifier.height(12.dp))
+                    OutlinedButton(
+                        onClick = {
+                            onDismiss()
+                            onCheckUpdates()
+                        },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text(
+                            text = "🔄 " + stringResource(R.string.check_updates),
+                            color = AccentBlue,
+                            fontSize = 13.sp
                         )
                     }
                 }
