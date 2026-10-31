@@ -295,30 +295,31 @@ fun MediaViewerScreen(
             exit = fadeOut(),
             modifier = Modifier.align(Alignment.BottomCenter)
         ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .navigationBarsPadding()
+            Surface(
+                color = OverlayDark,
+                modifier = Modifier.fillMaxWidth()
             ) {
-                // Playlist Filmstrip
-                if (showPlaylistFilmstrip) {
-                    PlaylistFilmstrip(
-                        items = items,
-                        currentIndex = pagerState.currentPage,
-                        onSelectIndex = { targetIdx ->
-                            scope.launch {
-                                pagerState.animateScrollToPage(targetIdx)
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .navigationBarsPadding()
+                        .padding(bottom = 8.dp)
+                ) {
+                    // Playlist Filmstrip
+                    if (showPlaylistFilmstrip) {
+                        PlaylistFilmstrip(
+                            items = items,
+                            currentIndex = pagerState.currentPage,
+                            onSelectIndex = { targetIdx ->
+                                scope.launch {
+                                    pagerState.animateScrollToPage(targetIdx)
+                                }
                             }
-                        }
-                    )
-                }
+                        )
+                    }
 
-                // Desktop-matching Image Toolbar (Rotate, Crop, Color Adjust, Upscale)
-                if (currentItem.mediaType == MediaType.IMAGE) {
-                    Surface(
-                        color = OverlayDark,
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
+                    // Desktop-matching Image Toolbar (Rotate, Crop, Color Adjust, Upscale)
+                    if (currentItem.mediaType == MediaType.IMAGE) {
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()

@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -363,12 +364,16 @@ fun VideoPlayerView(
             exit = fadeOut(),
             modifier = Modifier.align(Alignment.BottomCenter)
         ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .background(OverlayDark)
-                    .padding(horizontal = 16.dp, vertical = 12.dp)
+            Surface(
+                color = OverlayDark,
+                modifier = Modifier.fillMaxWidth()
             ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .navigationBarsPadding()
+                        .padding(horizontal = 16.dp, vertical = 10.dp)
+                ) {
                 // Seekbar & Time Row
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -543,6 +548,7 @@ fun VideoPlayerView(
                 }
             }
         }
+    }
     }
 }
 

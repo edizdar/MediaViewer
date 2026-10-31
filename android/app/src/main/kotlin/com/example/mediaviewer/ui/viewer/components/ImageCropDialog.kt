@@ -372,11 +372,12 @@ fun ImageCropDialog(
                 // Bottom Aspect Ratio Selector Bar
                 Surface(
                     color = DarkSurface,
-                    modifier = Modifier.fillMaxWidth().navigationBarsPadding()
+                    modifier = Modifier.fillMaxWidth()
                 ) {
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
+                            .navigationBarsPadding()
                             .padding(horizontal = 16.dp, vertical = 12.dp),
                         horizontalArrangement = Arrangement.SpaceEvenly,
                         verticalAlignment = Alignment.CenterVertically
