@@ -1,9 +1,9 @@
 {
-  "version": "1.3.4",
-  "tag_name": "v1.3.4",
-  "release_name": "Media Viewer v1.3.4",
-  "changelog": "• Canlı Ağ Yayını Kaydetme (Stream Recorder) eklendi: RTSP, M3U ve HLS canlı yayınlarını kayıpsız ve doğrudan MP4/TS/MKV formatında video dosyası olarak kaydetme özelliği (Ctrl+R)\n• Oynatıcıda '🔴 Yayını Kaydet' / '⏹️ Kaydı Durdur' butonları ve süre sayacı entegre edildi; kayıt tamamlandığında doğrudan oynatma veya klasörü açma seçeneği sunuldu\n• Ağ Akışı Diyaloğuna doğrudan '💾 Listeye Kaydet' ve '✏️ Düzenle' butonları eklendi\n• M3U Çalma Listesi Kaydetme düzeltildi: Oynatma listesi artık standart #EXTM3U formatında dışa aktarılabiliyor",
-  "download_apk_url": "https://github.com/edizdar/MediaViewer/releases/download/v1.3.4/MediaViewer.apk",
-  "download_exe_url": "https://github.com/edizdar/MediaViewer/releases/download/v1.3.4/MediaViewer_v1.3.4.exe",
-  "release_page_url": "https://github.com/edizdar/MediaViewer/releases/tag/v1.3.4"
+  "version": "1.3.5",
+  "tag_name": "v1.3.5",
+  "release_name": "Media Viewer v1.3.5",
+  "changelog": "• Dahili Kullanım Kılavuzu & Yardım (F1) ve README güncellendi: Canlı ağ akışları (RTSP/M3U), yayın kaydı (Ctrl+R), çalışma modları (Basit/Gelişmiş) ve tüm yeni kısayollar kılavuza ve SSS bölümüne eklendi",
+  "download_apk_url": "https://github.com/edizdar/MediaViewer/releases/download/v1.3.5/MediaViewer.apk",
+  "download_exe_url": "https://github.com/edizdar/MediaViewer/releases/download/v1.3.5/MediaViewer_v1.3.5.exe",
+  "release_page_url": "https://github.com/edizdar/MediaViewer/releases/tag/v1.3.5"
 }

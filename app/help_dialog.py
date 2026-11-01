@@ -223,6 +223,7 @@ class HelpDialog(QDialog):
             <table>
                 <tr><th>Shortcut</th><th>Description</th></tr>
                 <tr><td><kbd>Space</kbd></td><td>Play / Pause</td></tr>
+                <tr><td><kbd>Ctrl + R</kbd></td><td><b>🔴 Record / Stop Live Network Stream</b> (RTSP / M3U)</td></tr>
                 <tr><td><kbd>E</kbd></td><td><b>✨ Live Smart Video Enhancement (Vibrant & Sharp Mode)</b></td></tr>
                 <tr><td><kbd>S</kbd></td><td><b>📸 Snapshot full-res frame from video</b></td></tr>
                 <tr><td><kbd>C</kbd></td><td>Video trim & crop panel</td></tr>
@@ -232,13 +233,15 @@ class HelpDialog(QDialog):
                 <tr><td><kbd>1</kbd> .. <kbd>4</kbd></td><td>Playback Speed: 0.5x, 1.0x, 1.5x, 2.0x</td></tr>
             </table>
 
-            <h3>🌐 General & Navigation</h3>
+            <h3>🌐 General, Streams & Navigation</h3>
             <table>
                 <tr><th>Shortcut</th><th>Description</th></tr>
+                <tr><td><kbd>Alt + M</kbd> / <kbd>F10</kbd></td><td><b>☰ Main Application Menu</b></td></tr>
+                <tr><td><kbd>Ctrl + O</kbd></td><td>Open File dialog</td></tr>
+                <tr><td><kbd>Ctrl + U</kbd></td><td><b>📺 Open Network Stream (RTSP / HLS / M3U)</b></td></tr>
+                <tr><td><kbd>Ctrl + L</kbd></td><td>Playlist sidebar toggle</td></tr>
                 <tr><td><kbd>Alt + ←</kbd> / <kbd>Alt + →</kbd></td><td>Previous / Next media file in directory</td></tr>
                 <tr><td><kbd>F11</kbd> / <kbd>Double Click</kbd></td><td><b>Smart Fullscreen Mode</b></td></tr>
-                <tr><td><kbd>Ctrl + O</kbd></td><td>Open File dialog</td></tr>
-                <tr><td><kbd>Ctrl + L</kbd></td><td>Playlist sidebar toggle</td></tr>
                 <tr><td><kbd>F1</kbd></td><td>Open this User Guide & Help dialog</td></tr>
             </table>
             """
@@ -263,6 +266,7 @@ class HelpDialog(QDialog):
         <table>
             <tr><th>Kısayol</th><th>Açıklama</th></tr>
             <tr><td><kbd>Space</kbd></td><td>Oynat / Duraklat</td></tr>
+            <tr><td><kbd>Ctrl + R</kbd></td><td><b>🔴 Canlı Yayını Kaydet / Durdur</b> (RTSP / M3U)</td></tr>
             <tr><td><kbd>E</kbd></td><td><b>✨ Akıllı Canlı Video İyileştirme (Canlı & Net Modu)</b></td></tr>
             <tr><td><kbd>S</kbd></td><td><b>📸 Videodan Orijinal Çözünürlükte Kare Yakala (Snapshot)</b></td></tr>
             <tr><td><kbd>C</kbd></td><td>Video Kırpma & Kesme Panelini Aç / Kapat</td></tr>
@@ -272,13 +276,15 @@ class HelpDialog(QDialog):
             <tr><td><kbd>1</kbd> .. <kbd>4</kbd></td><td>Oynatma Hızı: 0.5x, 1.0x, 1.5x, 2.0x</td></tr>
         </table>
 
-        <h3>🌐 Genel & Gezinme</h3>
+        <h3>🌐 Genel, Akışlar & Gezinme</h3>
         <table>
             <tr><th>Kısayol</th><th>Açıklama</th></tr>
-            <tr><td><kbd>Alt + ←</kbd> / <kbd>Alt + →</kbd></td><td>Klasördeki Önceki / Sonraki Medya Dosyası</td></tr>
-            <tr><td><kbd>F11</kbd> / <kbd>Çift Tık</kbd></td><td><b>Akıllı Tam Ekran Modu</b> (Sıfır dikkat dağıtıcı, butonlar kenarda belirir)</td></tr>
+            <tr><td><kbd>Alt + M</kbd> / <kbd>F10</kbd></td><td><b>☰ Ana Uygulama Menüsü</b></td></tr>
             <tr><td><kbd>Ctrl + O</kbd></td><td>Dosya Aç iletişim kutusu</td></tr>
+            <tr><td><kbd>Ctrl + U</kbd></td><td><b>📺 Ağ Akışı Aç (RTSP / HLS / M3U)</b></td></tr>
             <tr><td><kbd>Ctrl + L</kbd></td><td>Oynatma Listesi / Galeri Kenar Çubuğu Aç/Kapat</td></tr>
+            <tr><td><kbd>Alt + ←</kbd> / <kbd>Alt + →</kbd></td><td>Klasördeki Önceki / Sonraki Medya Dosyası</td></tr>
+            <tr><td><kbd>F11</kbd> / <kbd>Çift Tık</kbd></td><td><b>Akıllı Tam Ekran Modu</b> (Sıfır dikkat dağıtıcı)</td></tr>
             <tr><td><kbd>F1</kbd></td><td>Bu Kullanım Kılavuzu & Yardım Penceresini Aç</td></tr>
         </table>
         """
@@ -325,6 +331,27 @@ class HelpDialog(QDialog):
                 <div class="card-title">📸 One-Click Video Snapshot (S key)</div>
                 <div class="card-body">
                     Instantly save full-resolution lossless frames from any playing or paused video (1080p, 4K) directly to disk or clipboard.
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-title">📺 Live Network Streams & IPTV (Ctrl+U)</div>
+                <div class="card-body">
+                    Watch RTSP security cameras, HLS (.m3u8), and M3U IPTV channels directly. Right-click any M3U file in Windows Explorer and choose "Open With &rarr; Media Viewer" to automatically import all channels into the filmstrip panel. Supports Low-Latency mode for IP cams and Balanced mode for IPTV.
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-title">🔴 Live Stream Recording (Ctrl+R)</div>
+                <div class="card-body">
+                    Record live RTSP cameras or M3U streams directly to your disk as lossless MP4, TS, or MKV video files with zero CPU overhead using direct bitstream copy. Includes live duration counter and instant playback upon stopping.
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-title">🎨 Operating Modes: Simple vs. Advanced Editing</div>
+                <div class="card-body">
+                    Switch between <b>Simple Mode</b> (pure, minimalist distraction-free viewing) and <b>Advanced Mode</b> (full photo/video color grading, trimming, cropping, upscaling, and stream tools) via the top-left menu.
                 </div>
             </div>
             """
@@ -378,6 +405,34 @@ class HelpDialog(QDialog):
                 Videolarda hem süre aralığını (Başlangıç/Bitiş) hem de kadrajı (Genişlik/Yükseklik) belirleyerek ister kayıpsız ister optimize MP4 olarak tek tıkla dışa aktarabilirsiniz.
             </div>
         </div>
+
+        <div class="card">
+            <div class="card-title">📺 Canlı Ağ Akışları & IPTV Oynatma (Ctrl+U)</div>
+            <div class="card-body">
+                RTSP IP kameralarını, HLS (.m3u8) canlı yayınlarını ve M3U IPTV listelerini doğrudan oynatın. Windows'ta herhangi bir .m3u dosyasına sağ tıklayıp <b>"Birlikte Aç &rarr; Media Viewer"</b> seçtiğinizde tüm kanallar otomatik olarak sol oynatma listesine yüklenir ve ilk kanal başlar. IP kameralar için <b>⚡ Düşük Gecikme</b>, IPTV için <b>⚖️ Dengeli Tampon</b> modları mevcuttur.
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-title">🔴 Canlı Yayını Video Olarak Kaydetme (Ctrl+R)</div>
+            <div class="card-body">
+                İzlediğiniz canlı RTSP kamerasını veya IPTV kanalını tek tıkla doğrudan MP4, TS veya MKV formatında video dosyası olarak bilgisayarınıza kaydedebilirsiniz. Doğrudan kopyalama modunu kullandığı için bilgisayarı yormaz ve yayın kalitesini %100 kayıpsız korur.
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-title">🎨 Çalışma Modları: Basit İzleme vs. Gelişmiş Düzenleme</div>
+            <div class="card-body">
+                Sol üstteki <b>☰ Menü &gt; Çalışma Modu</b> altından tek tıkla <b>👁️ Basit Mod</b> (dikkat dağıtmayan, sade ve hızlı medya izleme) veya <b>🛠️ Gelişmiş Mod</b> (tüm renk ayarları, kırpma, kesme, HD büyütme ve akış araçları) arasında geçiş yapabilirsiniz.
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-title">📋 M3U Standart Dışa Aktarma (#EXTM3U)</div>
+            <div class="card-body">
+                Oynatma listesi panelindeki <b>💾 Kaydet</b> butonu ile oluşturduğunuz medya ve kanal listelerini VLC ve diğer tüm oynatıcılarla uyumlu standart <code>#EXTM3U</code> formatında kaydedebilirsiniz.
+            </div>
+        </div>
         """
 
     def _get_faq_html(self) -> str:
@@ -402,7 +457,18 @@ class HelpDialog(QDialog):
             <div class="q">❓ Question: Which formats are supported?</div>
             <div class="a">
                 <b>Images:</b> JPG, JPEG, PNG, GIF, BMP, WEBP, TIFF, ICO, SVG.<br>
-                <b>Videos:</b> MP4, MKV, MOV, AVI, WEBM, FLV, TS, M4V, WMV.
+                <b>Videos:</b> MP4, MKV, MOV, AVI, WEBM, FLV, TS, M4V, WMV.<br>
+                <b>Streams:</b> RTSP, HLS (.m3u8), M3U, HTTP Live, RTMP.
+            </div>
+
+            <div class="q">❓ Question: How do I record live RTSP or M3U streams?</div>
+            <div class="a">
+                When any live network stream is playing, simply click the <b>🔴 Record Stream</b> button on the player controls or press <b>Ctrl+R</b>. You will be prompted for a destination path (MP4, TS, or MKV). When finished, click <b>⏹️ Stop Recording</b> to instantly save and play the file.
+            </div>
+
+            <div class="q">❓ Question: What is the difference between Simple Mode and Advanced Mode?</div>
+            <div class="a">
+                <b>Simple Mode</b> hides the editing buttons and color adjustment panel, offering a pure, fast, lightweight viewing experience. <b>Advanced Mode</b> enables trimming, cropping, color corrections, upscaling, and stream recording. You can switch anytime via the top-left menu (<code>Alt+M</code>).
             </div>
             """
 
@@ -426,7 +492,18 @@ class HelpDialog(QDialog):
         <div class="q">❓ Soru: Hangi dosya formatları destekleniyor?</div>
         <div class="a">
             <b>Fotoğraflar:</b> JPG, JPEG, PNG, GIF, BMP, WEBP, TIFF, ICO, SVG.<br>
-            <b>Videolar:</b> MP4, MKV, MOV, AVI, WEBM, FLV, TS, M4V, WMV.
+            <b>Videolar:</b> MP4, MKV, MOV, AVI, WEBM, FLV, TS, M4V, WMV.<br>
+            <b>Canlı Yayınlar & Akışlar:</b> RTSP, HLS (.m3u8), M3U, HTTP Canlı, RTMP.
+        </div>
+
+        <div class="q">❓ Soru: Canlı RTSP veya M3U yayınlarını nasıl kaydederim?</div>
+        <div class="a">
+            Herhangi bir canlı ağ akışı oynatılırken alt kontrol çubuğunda beliren <b>🔴 Yayını Kaydet</b> butonuna basabilir veya <b>Ctrl+R</b> kısayolunu kullanabilirsiniz. Kaydetmek istediğiniz konumu seçtikten sonra canlı kayıt başlar; durdurmak için <b>⏹️ Kaydı Durdur</b> butonuna basmanız yeterlidir. Dosya doğrudan MP4, TS veya MKV olarak kaydedilir.
+        </div>
+
+        <div class="q">❓ Soru: "Basit Mod" ile "Gelişmiş Mod" arasındaki fark nedir?</div>
+        <div class="a">
+            <b>Basit Mod</b> düzenleme, kırpma ve renk araçlarını gizleyerek uygulamayı yalnızca hızlı ve sade bir izleyici haline getirir. <b>Gelişmiş Mod</b> ise kırpma, renk ayarları, netleştirme, HD büyütme ve yayın kaydı gibi tüm profesyonel araçları aktif eder. Sol üstteki <code>☰ Menü</code>den (<code>Alt+M</code>) dilediğiniz zaman değiştirebilirsiniz.
         </div>
         """
 
