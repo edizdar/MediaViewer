@@ -1,9 +1,9 @@
 {
-  "version": "1.3.2",
-  "tag_name": "v1.3.2",
-  "release_name": "Media Viewer v1.3.2",
-  "changelog": "• Ağ Akışı Açma & M3U Çalma Listesi düzeltildi: Video oynatıcıda akış URL çözümleme hatası ve yükleme metodu düzeltildi\n• 'Birlikte Aç' ile M3U/M3U8 desteği: Windows ve Android'de harici dosya yöneticisinden M3U dosyaları açıldığında otomatik parse edilerek tüm kanalların listelenmesi ve ilk kanalın oynatılması sağlandı\n• M3U Oynatma Paneli: Kanal isimleri, TV logoları ve hem çevrimiçi akışlar hem yerel dosyalar tam destekleniyor",
-  "download_apk_url": "https://github.com/edizdar/MediaViewer/releases/download/v1.3.2/MediaViewer.apk",
-  "download_exe_url": "https://github.com/edizdar/MediaViewer/releases/download/v1.3.2/MediaViewer_v1.3.2.exe",
-  "release_page_url": "https://github.com/edizdar/MediaViewer/releases/tag/v1.3.2"
+  "version": "1.3.3",
+  "tag_name": "v1.3.3",
+  "release_name": "Media Viewer v1.3.3",
+  "changelog": "• Ağ Akışı Aç (RTSP / HLS / M3U) iletişim kutusu hatası düzeltildi: Menüden tıklandığında açılmama sorunu giderildi\n• Ana Menü sol üste taşındı: 'Dosya Aç', 'Ağ Akışı Aç' ve 'Oynatma Listesi' tek bir düzenli menü içinde toplandı, araç çubuğu sadeleştirildi\n• Hazır RTSP Canlı Test Akışları eklendi: Wowza RTSP ve RTSP Stream test bağlantıları ile tek tıkla anında test imkanı\n• Alt+M ve F10 kısayolları ile doğrudan Ana Menü erişimi sağlandı",
+  "download_apk_url": "https://github.com/edizdar/MediaViewer/releases/download/v1.3.3/MediaViewer.apk",
+  "download_exe_url": "https://github.com/edizdar/MediaViewer/releases/download/v1.3.3/MediaViewer_v1.3.3.exe",
+  "release_page_url": "https://github.com/edizdar/MediaViewer/releases/tag/v1.3.3"
 }

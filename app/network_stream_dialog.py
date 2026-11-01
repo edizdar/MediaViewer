@@ -22,21 +22,31 @@ from PySide6.QtWidgets import (
     QMessageBox,
 )
 
-from app.i18n import loc
+from app.localization import loc
 
 DEFAULT_SAMPLE_STREAMS = [
     {
-        "name": "Big Buck Bunny (HLS Canlı/VOD)",
+        "name": "🎥 Wowza Demo (RTSP Canlı / Test Akışı)",
+        "url": "rtsp://wowzaec2demo.streamlock.net/vod/mp4:BigBuckBunny_115k.mp4",
+        "buffer_mode": "low_latency",
+    },
+    {
+        "name": "🎥 Test Pattern (RTSP Demo)",
+        "url": "rtsp://rtsp.stream/pattern",
+        "buffer_mode": "low_latency",
+    },
+    {
+        "name": "🎬 Big Buck Bunny (HLS Canlı/VOD)",
         "url": "https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8",
         "buffer_mode": "balanced",
     },
     {
-        "name": "Sintel (HLS Multi-Quality)",
+        "name": "🎬 Sintel (HLS Multi-Quality)",
         "url": "https://bitdash-a.akamaihd.net/content/sintel/hls/playlist.m3u8",
         "buffer_mode": "balanced",
     },
     {
-        "name": "Tears of Steel (HLS Demo)",
+        "name": "🎬 Tears of Steel (HLS Demo)",
         "url": "https://demo.unified-streaming.com/k8s/features/stable/video/tears-of-steel/tears-of-steel.ism/.m3u8",
         "buffer_mode": "balanced",
     },
@@ -69,6 +79,14 @@ class NetworkStreamDialog(QDialog):
                 self._saved_streams = list(DEFAULT_SAMPLE_STREAMS)
         else:
             self._saved_streams = list(DEFAULT_SAMPLE_STREAMS)
+            self._save_streams_to_disk()
+
+        # Ensure RTSP sample is available for testing if not already present
+        has_rtsp = any("rtsp://" in (s.get("url") or "").lower() for s in self._saved_streams)
+        if not has_rtsp:
+            for sample in reversed(DEFAULT_SAMPLE_STREAMS):
+                if "rtsp://" in sample.get("url", "").lower():
+                    self._saved_streams.insert(0, dict(sample))
             self._save_streams_to_disk()
 
     def _save_streams_to_disk(self) -> None:
@@ -114,6 +132,10 @@ class NetworkStreamDialog(QDialog):
         self._url_input.setPlaceholderText("rtsp://, https://.../stream.m3u8 veya http://...")
         self._url_input.textChanged.connect(self._on_url_changed)
         layout.addWidget(self._url_input)
+
+        hint_label = QLabel("💡 <i>İpucu: Test etmek için 'Kayıtlı Akışlar' sekmesindeki hazır RTSP veya HLS örneklerine çift tıklayabilirsiniz.</i>")
+        hint_label.setStyleSheet("color: #a6adc8; font-size: 11px;")
+        layout.addWidget(hint_label)
 
         # Name Input
         layout.addWidget(QLabel("Akış / Kanal Adı (İsteğe bağlı):"))

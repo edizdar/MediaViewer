@@ -57,9 +57,32 @@ class TopToolbar(QWidget):
 
         layout = QHBoxLayout(self)
         layout.setContentsMargins(8, 0, 8, 0)
-        layout.setSpacing(4)
+        layout.setSpacing(6)
 
-        # Open file button
+        # 1. Unified Main Menu Button (Top-Left)
+        self._menu_btn = QPushButton("☰  Menü")
+        self._menu_btn.setObjectName("menuButton")
+        self._menu_btn.setToolTip("Ana Menü (Alt+M / F10)")
+        self._menu_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        self._menu_btn.setStyleSheet(
+            "QPushButton#menuButton {"
+            "  font-weight: bold;"
+            "  font-size: 13px;"
+            "  padding: 5px 12px;"
+            "  border-radius: 6px;"
+            "  background-color: rgba(255, 255, 255, 0.08);"
+            "  border: 1px solid rgba(255, 255, 255, 0.15);"
+            "  color: #cdd6f4;"
+            "}"
+            "QPushButton#menuButton:hover {"
+            "  background-color: rgba(255, 255, 255, 0.18);"
+            "  border-color: rgba(255, 255, 255, 0.3);"
+            "}"
+        )
+        self._menu_btn.clicked.connect(self._show_main_menu)
+        layout.addWidget(self._menu_btn)
+
+        # 2. Quick Open File Button
         self._open_btn = QPushButton(loc("open_file_btn"))
         self._open_btn.setObjectName("accentButton")
         self._open_btn.setToolTip(loc("open_file_tip"))
@@ -67,19 +90,9 @@ class TopToolbar(QWidget):
         self._open_btn.clicked.connect(self.open_file_clicked)
         layout.addWidget(self._open_btn)
 
-        # Open network stream button (quick access)
-        self._stream_btn = _icon_button("📺", "Ağ Akışı Aç (RTSP / HLS / M3U) (Ctrl+U)")
-        self._stream_btn.clicked.connect(self.open_stream_clicked)
-        layout.addWidget(self._stream_btn)
-
-        # Playlist toggle button (quick access)
-        self._playlist_btn = _icon_button("📋", loc("playlist_tip"))
-        self._playlist_btn.clicked.connect(self.playlist_toggled)
-        layout.addWidget(self._playlist_btn)
-
         layout.addWidget(_separator())
 
-        # File name label
+        # 3. File name / Stream title label
         self._file_label = QLabel("")
         self._file_label.setObjectName("fileNameLabel")
         self._file_label.setSizePolicy(
@@ -90,7 +103,7 @@ class TopToolbar(QWidget):
         )
         layout.addWidget(self._file_label)
 
-        # Navigation
+        # 4. Navigation
         layout.addWidget(_separator())
 
         self._prev_btn = _icon_button("◀", loc("prev_tip"))
@@ -109,7 +122,7 @@ class TopToolbar(QWidget):
 
         layout.addWidget(_separator())
 
-        # Fullscreen button
+        # 5. Fullscreen button (Top-Right)
         self._fullscreen_btn = _icon_button("⛶", loc("fullscreen_tip"))
         self._fullscreen_btn.setStyleSheet(
             "QPushButton { font-size: 20px; min-width: 36px; min-height: 36px; }"
@@ -117,21 +130,8 @@ class TopToolbar(QWidget):
         self._fullscreen_btn.clicked.connect(self.fullscreen_clicked)
         layout.addWidget(self._fullscreen_btn)
 
-        layout.addWidget(_separator())
-
-        # Unified Top-Right Overflow Menu (⚙️ Menü)
-        self._menu_btn = QPushButton("⚙️  Menü")
-        self._menu_btn.setObjectName("iconButton")
-        self._menu_btn.setToolTip("Menü ve Ayarlar")
-        self._menu_btn.setCursor(Qt.CursorShape.PointingHandCursor)
-        self._menu_btn.setStyleSheet(
-            "QPushButton { font-weight: bold; font-size: 13px; min-width: 80px; padding: 4px 10px; }"
-        )
-        self._menu_btn.clicked.connect(self._show_main_menu)
-        layout.addWidget(self._menu_btn)
-
     def _show_main_menu(self) -> None:
-        """Display clean top-right popup menu with modes, settings, streams and about."""
+        """Display clean top-left popup menu with file ops, modes, settings, streams and about."""
         from PySide6.QtWidgets import QMenu
         from PySide6.QtGui import QActionGroup
         from PySide6.QtCore import QPoint
@@ -140,20 +140,25 @@ class TopToolbar(QWidget):
         loc_mgr = get_localization()
         current_lang = loc_mgr.current_language
         lang_mode = loc_mgr.mode
+        is_tr = current_lang == "tr"
 
-        # 1. Media Actions
-        stream_act = menu.addAction("📺  " + ("Ağ Akışı Aç (RTSP / HLS / M3U)..." if current_lang == "tr" else "Open Network Stream (RTSP / HLS / M3U)..."))
+        # 1. File & Stream Operations
+        open_act = menu.addAction("📂  " + ("Dosya Aç... (Ctrl+O)" if is_tr else "Open File... (Ctrl+O)"))
+        open_act.setShortcut("Ctrl+O")
+        open_act.triggered.connect(self.open_file_clicked.emit)
+
+        stream_act = menu.addAction("📺  " + ("Ağ Akışı Aç (RTSP / HLS / M3U)... (Ctrl+U)" if is_tr else "Open Network Stream (RTSP / HLS / M3U)... (Ctrl+U)"))
         stream_act.setShortcut("Ctrl+U")
         stream_act.triggered.connect(self.open_stream_clicked.emit)
 
-        playlist_act = menu.addAction("📋  " + loc("playlist_tip"))
+        playlist_act = menu.addAction("📋  " + ("Oynatma Listesi / Şerit (Ctrl+L)" if is_tr else "Playlist / Filmstrip (Ctrl+L)"))
         playlist_act.setShortcut("Ctrl+L")
         playlist_act.triggered.connect(self.playlist_toggled.emit)
 
         menu.addSeparator()
 
-        # 2. Modes Submenu / Actions
-        mode_menu = menu.addMenu("🎨  " + ("Çalışma Modu" if current_lang == "tr" else "App Mode"))
+        # 2. Operating Modes (Simple vs Advanced)
+        mode_menu = menu.addMenu("🎨  " + ("Çalışma Modu" if is_tr else "App Mode"))
         mode_group = QActionGroup(self)
         mode_group.setExclusive(True)
 
@@ -170,11 +175,11 @@ class TopToolbar(QWidget):
         mode_group.addAction(edit_act)
 
         # 3. Language Submenu
-        lang_menu = menu.addMenu("🌐  " + ("Dil / Language" if current_lang == "tr" else "Language / Dil"))
+        lang_menu = menu.addMenu("🌐  " + ("Dil / Language" if is_tr else "Language / Dil"))
         lang_group = QActionGroup(self)
         lang_group.setExclusive(True)
 
-        auto_act = lang_menu.addAction("🌐 " + ("Otomatik (Sistem)" if current_lang == "tr" else "Auto (System)"))
+        auto_act = lang_menu.addAction("🌐 " + ("Otomatik (Sistem)" if is_tr else "Auto (System)"))
         auto_act.setCheckable(True)
         auto_act.setChecked(lang_mode == "auto")
         auto_act.triggered.connect(lambda: self.language_selected.emit("auto"))
@@ -195,14 +200,14 @@ class TopToolbar(QWidget):
         menu.addSeparator()
 
         # 4. Updates, Help, About
-        update_act = menu.addAction("🔄  " + ("Güncellemeleri Denetle..." if current_lang == "tr" else "Check for Updates..."))
+        update_act = menu.addAction("🔄  " + ("Güncellemeleri Denetle..." if is_tr else "Check for Updates..."))
         update_act.triggered.connect(self.check_updates_clicked.emit)
 
         help_act = menu.addAction("❓  " + loc("help_tip"))
         help_act.setShortcut("F1")
         help_act.triggered.connect(self.help_clicked.emit)
 
-        about_act = menu.addAction("ℹ️  " + ("Hakkında & Geliştirici" if current_lang == "tr" else "About & Developer"))
+        about_act = menu.addAction("ℹ️  " + ("Hakkında & Geliştirici" if is_tr else "About & Developer"))
         about_act.triggered.connect(self.about_clicked.emit)
 
         # Show below menu button
@@ -216,13 +221,12 @@ class TopToolbar(QWidget):
         """Update tooltips and labels when language changes."""
         self._open_btn.setText(loc("open_file_btn"))
         self._open_btn.setToolTip(loc("open_file_tip"))
-        self._playlist_btn.setToolTip(loc("playlist_tip"))
         self._prev_btn.setToolTip(loc("prev_tip"))
         self._next_btn.setToolTip(loc("next_tip"))
         self._fullscreen_btn.setToolTip(loc("fullscreen_tip"))
         is_tr = get_localization().current_language == "tr"
-        self._menu_btn.setText("⚙️  Menü" if is_tr else "⚙️  Menu")
-        self._menu_btn.setToolTip("Menü ve Ayarlar" if is_tr else "Menu & Settings")
+        self._menu_btn.setText("☰  Menü" if is_tr else "☰  Menu")
+        self._menu_btn.setToolTip("Ana Menü ve Ayarlar (Alt+M / F10)" if is_tr else "Main Menu & Settings (Alt+M / F10)")
 
     def set_file_info(self, name: str, index: int, total: int) -> None:
         """Update the file name and navigation counter."""

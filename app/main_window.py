@@ -278,6 +278,8 @@ class MainWindow(QMainWindow):
             "Ctrl+L": self._toggle_playlist,
             "Ctrl+Shift+U": self._show_upscale_dialog,
             "F1": self._show_help_dialog,
+            "Alt+M": self._top_toolbar._show_main_menu,
+            "F10": self._top_toolbar._show_main_menu,
         }
 
         for key, slot in shortcuts.items():

@@ -158,8 +158,15 @@ object StreamManager {
                 bufferMode = "BALANCED"
             ),
             SavedStream(
+                id = "sample_rtsp_wowza",
+                name = "🎥 Test: Wowza RTSP Demo (Big Buck Bunny)",
+                url = "rtsp://wowzaec2demo.streamlock.net/vod/mp4:BigBuckBunny_115k.mp4",
+                type = "RTSP",
+                bufferMode = "LOW_LATENCY"
+            ),
+            SavedStream(
                 id = "sample_rtsp_demo",
-                name = "🎥 Test: RTSP Kamera Yayını (Big Buck Bunny)",
+                name = "🎥 Test: RTSP Kamera Yayını (Pattern)",
                 url = "rtsp://rtsp.stream/pattern",
                 type = "RTSP",
                 bufferMode = "LOW_LATENCY"
