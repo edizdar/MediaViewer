@@ -12,10 +12,12 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import android.os.Build
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.OpenInNew
+import androidx.compose.material.icons.filled.DeleteOutline
 import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.SystemUpdate
@@ -23,6 +25,8 @@ import androidx.compose.material.icons.filled.Tune
 import com.example.mediaviewer.util.AppMode
 import com.example.mediaviewer.util.SettingsManager
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.HorizontalDivider
@@ -32,7 +36,10 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.RadioButtonDefaults
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Switch
+import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
+import com.example.mediaviewer.ui.theme.AccentGreen
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -195,7 +202,108 @@ fun SettingsDialog(
 
                 Spacer(modifier = Modifier.height(14.dp))
 
-                // --- SECTION 2: DİL SEÇİMİ (LANGUAGE) ---
+                // --- SECTION 2: DOSYA SİLME AYARLARI ---
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.DeleteOutline,
+                        contentDescription = null,
+                        tint = AccentCyan,
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Text(
+                        text = stringResource(R.string.deletion_settings_title),
+                        color = AccentCyan,
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(6.dp))
+
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(containerColor = Color(0xFF1E2230)),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Column(modifier = Modifier.padding(12.dp)) {
+                        // 1. Silmeden önce onay iste toggle
+                        val confirmDelete = SettingsManager.confirmDeleteState.value
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable { SettingsManager.setConfirmDelete(context, !confirmDelete) },
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = stringResource(R.string.confirm_delete_title),
+                                    color = TextPrimary,
+                                    fontSize = 14.sp,
+                                    fontWeight = FontWeight.SemiBold
+                                )
+                                Text(
+                                    text = stringResource(R.string.confirm_delete_desc),
+                                    color = TextSecondary,
+                                    fontSize = 11.sp
+                                )
+                            }
+                            Switch(
+                                checked = confirmDelete,
+                                onCheckedChange = { SettingsManager.setConfirmDelete(context, it) },
+                                colors = SwitchDefaults.colors(
+                                    checkedThumbColor = Color.White,
+                                    checkedTrackColor = AccentBlue
+                                )
+                            )
+                        }
+
+                        // 2. Android 11+ Kesintisiz Silme / Tüm Dosyalara Erişim İzni
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                            HorizontalDivider(
+                                color = Color.White.copy(alpha = 0.1f),
+                                modifier = Modifier.padding(vertical = 10.dp)
+                            )
+
+                            val hasAllFiles = SettingsManager.hasAllFilesAccess()
+                            if (hasAllFiles) {
+                                Text(
+                                    text = stringResource(R.string.all_files_permission_granted),
+                                    color = AccentGreen,
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.Medium
+                                )
+                            } else {
+                                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                                    Text(
+                                        text = stringResource(R.string.all_files_permission_desc),
+                                        color = TextSecondary,
+                                        fontSize = 11.sp
+                                    )
+                                    Button(
+                                        onClick = { SettingsManager.openAllFilesAccessSettings(context) },
+                                        colors = ButtonDefaults.buttonColors(containerColor = AccentBlue),
+                                        shape = RoundedCornerShape(8.dp),
+                                        modifier = Modifier.fillMaxWidth()
+                                    ) {
+                                        Text(
+                                            text = stringResource(R.string.all_files_permission_needed),
+                                            fontSize = 12.sp,
+                                            fontWeight = FontWeight.Bold
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(14.dp))
+
+                // --- SECTION 3: DİL SEÇİMİ (LANGUAGE) ---
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(6.dp)

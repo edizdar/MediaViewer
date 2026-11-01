@@ -7,6 +7,7 @@ import android.content.IntentSender
 import android.media.MediaMetadataRetriever
 import android.net.Uri
 import android.os.Build
+import android.os.Environment
 import android.provider.DocumentsContract
 import android.provider.MediaStore
 import android.provider.OpenableColumns
@@ -570,6 +571,28 @@ class MediaRepository {
         // Step 2: Resolve canonical MediaStore content URI
         val canonicalUri = findCanonicalMediaStoreUri(context, item)
         val targetUri = canonicalUri ?: item.uri
+
+        // Step 2.5: If user granted All Files Access (MANAGE_EXTERNAL_STORAGE), delete seamlessly without prompts
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R && Environment.isExternalStorageManager()) {
+            val directFilePath = item.path ?: if (item.uri.scheme == "file") item.uri.path else null
+            if (!directFilePath.isNullOrEmpty()) {
+                val f = File(directFilePath)
+                if (f.exists()) f.delete()
+            }
+            try {
+                val rows = context.contentResolver.delete(targetUri, null, null)
+                if (rows > 0) return@withContext DeleteRequestResult.Success
+            } catch (_: Exception) {}
+            if (canonicalUri != null && canonicalUri != item.uri) {
+                try {
+                    val rows = context.contentResolver.delete(canonicalUri, null, null)
+                    if (rows > 0) return@withContext DeleteRequestResult.Success
+                } catch (_: Exception) {}
+            }
+            if (!directFilePath.isNullOrEmpty() && !File(directFilePath).exists()) {
+                return@withContext DeleteRequestResult.Success
+            }
+        }
 
         // Step 3: Android 11+ (API 30+) MediaStore Scoped Storage with createDeleteRequest
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R && targetUri.authority == MediaStore.AUTHORITY) {

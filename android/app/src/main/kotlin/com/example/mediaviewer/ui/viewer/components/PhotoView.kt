@@ -1,7 +1,8 @@
 package com.example.mediaviewer.ui.viewer.components
 
 import androidx.compose.foundation.gestures.detectTapGestures
-import androidx.compose.foundation.gestures.detectTransformGestures
+import androidx.compose.foundation.gestures.rememberTransformableState
+import androidx.compose.foundation.gestures.transformable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
@@ -16,7 +17,9 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.unit.IntSize
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.example.mediaviewer.model.MediaItem
@@ -33,10 +36,30 @@ fun PhotoView(
     val context = LocalContext.current
     var scale by remember { mutableFloatStateOf(1f) }
     var offset by remember { mutableStateOf(Offset.Zero) }
+    var containerSize by remember { mutableStateOf(IntSize.Zero) }
+
+    val transformableState = rememberTransformableState { zoomChange, panChange, _ ->
+        val newScale = (scale * zoomChange).coerceIn(1f, 5f)
+        scale = newScale
+        val isZoomed = newScale > 1.05f
+        onZoomChanged(isZoomed)
+
+        if (isZoomed && containerSize.width > 0 && containerSize.height > 0) {
+            val maxOffsetX = (containerSize.width * (scale - 1)) / 2f
+            val maxOffsetY = (containerSize.height * (scale - 1)) / 2f
+            offset = Offset(
+                x = (offset.x + panChange.x * scale).coerceIn(-maxOffsetX, maxOffsetX),
+                y = (offset.y + panChange.y * scale).coerceIn(-maxOffsetY, maxOffsetY)
+            )
+        } else {
+            offset = Offset.Zero
+        }
+    }
 
     Box(
         modifier = modifier
             .fillMaxSize()
+            .onSizeChanged { containerSize = it }
             .pointerInput(Unit) {
                 detectTapGestures(
                     onTap = { onToggleControls() },
@@ -47,35 +70,23 @@ fun PhotoView(
                             onZoomChanged(false)
                         } else {
                             scale = 2.5f
-                            // Center zoom on tap position
-                            offset = Offset(
-                                -(tapOffset.x - size.width / 2f) * 1.5f,
-                                -(tapOffset.y - size.height / 2f) * 1.5f
-                            )
+                            if (containerSize.width > 0 && containerSize.height > 0) {
+                                val maxOffsetX = (containerSize.width * (2.5f - 1)) / 2f
+                                val maxOffsetY = (containerSize.height * (2.5f - 1)) / 2f
+                                offset = Offset(
+                                    x = (-(tapOffset.x - containerSize.width / 2f) * 1.5f).coerceIn(-maxOffsetX, maxOffsetX),
+                                    y = (-(tapOffset.y - containerSize.height / 2f) * 1.5f).coerceIn(-maxOffsetY, maxOffsetY)
+                                )
+                            }
                             onZoomChanged(true)
                         }
                     }
                 )
             }
-            .pointerInput(Unit) {
-                detectTransformGestures { _, pan, zoom, _ ->
-                    val newScale = (scale * zoom).coerceIn(1f, 5f)
-                    val isZoomed = newScale > 1.05f
-                    onZoomChanged(isZoomed)
-
-                    scale = newScale
-                    if (isZoomed) {
-                        val maxOffsetX = (size.width * (scale - 1)) / 2f
-                        val maxOffsetY = (size.height * (scale - 1)) / 2f
-                        offset = Offset(
-                            x = (offset.x + pan.x * scale).coerceIn(-maxOffsetX, maxOffsetX),
-                            y = (offset.y + pan.y * scale).coerceIn(-maxOffsetY, maxOffsetY)
-                        )
-                    } else {
-                        offset = Offset.Zero
-                    }
-                }
-            },
+            .transformable(
+                state = transformableState,
+                canPan = { scale > 1.05f }
+            ),
         contentAlignment = Alignment.Center
     ) {
         AsyncImage(

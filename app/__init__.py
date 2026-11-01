@@ -2,7 +2,7 @@
 from pathlib import Path
 from PySide6.QtGui import QIcon
 
-__version__ = "1.2.8"
+__version__ = "1.2.9"
 APP_NAME = "Media Viewer"
 APP_TITLE = f"Media Viewer v{__version__}"
 

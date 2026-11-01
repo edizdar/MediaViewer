@@ -83,4 +83,11 @@
     <string name="mode_simple_desc">Düzenleme butonları gizlenir, sade ve akıcı görüntüleme sağlar.</string>
     <string name="mode_advanced">Gelişmiş Mod (Düzenleme Aktif)</string>
     <string name="mode_advanced_desc">Kırpma, döndürme, renk ayarı, HD büyütme ve video kesme açık.</string>
+    <string name="deletion_settings_title">Dosya Silme Ayarları</string>
+    <string name="confirm_delete_title">Silmeden Önce Onay İste</string>
+    <string name="confirm_delete_desc">Kapalıyken çöp kutusuna basıldığında doğrudan silinir.</string>
+    <string name="all_files_permission_title">Kesintisiz Silme İzni</string>
+    <string name="all_files_permission_granted">✅ Tüm Dosyalara Erişim İzni Verildi (Her silmede sistem onay kutusu çıkmaz)</string>
+    <string name="all_files_permission_needed">⚙️ Tüm Dosyalara Erişim İzni Ver</string>
+    <string name="all_files_permission_desc">Android\'in her fotoğraf silmede ayrı onay sormasını engellemek için Tüm Dosyalara Erişim iznini açabilirsiniz.</string>
 </resources>

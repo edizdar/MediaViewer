@@ -1,9 +1,9 @@
 {
-  "version": "1.2.8",
-  "tag_name": "v1.2.8",
-  "release_name": "Media Viewer v1.2.8",
-  "changelog": "• Basit (Görüntüleme) ve Gelişmiş (Düzenleme) modu eklendi\n• Kapsamlı Ayarlar menüsü, Geliştirici ve Web bağlantısı eklendi\n• Android Scoped Storage fotoğraf silme sorunu çözüldü\n• Otomatik güncelleme algılama ve bildirim sistemi güçlendirildi",
-  "download_apk_url": "https://github.com/edizdar/MediaViewer/releases/download/v1.2.8/MediaViewer.apk",
-  "download_exe_url": "https://github.com/edizdar/MediaViewer/releases/download/v1.2.8/MediaViewer_v1.2.8.exe",
-  "release_page_url": "https://github.com/edizdar/MediaViewer/releases/tag/v1.2.8"
+  "version": "1.2.9",
+  "tag_name": "v1.2.9",
+  "release_name": "Media Viewer v1.2.9",
+  "changelog": "• Görsel kaydırma (sağa/sola kaydırarak sonraki/önceki medyaya geçiş) kusursuzlaştırıldı\n• Kesintisiz silme (Tüm Dosyalara Erişim) ve Ayarlarda 'Silme Onayı İste' seçeneği eklendi\n• Görsel gezinme yön butonları (Önceki / Sonraki) eklendi",
+  "download_apk_url": "https://github.com/edizdar/MediaViewer/releases/download/v1.2.9/MediaViewer.apk",
+  "download_exe_url": "https://github.com/edizdar/MediaViewer/releases/download/v1.2.9/MediaViewer_v1.2.9.exe",
+  "release_page_url": "https://github.com/edizdar/MediaViewer/releases/tag/v1.2.9"
 }

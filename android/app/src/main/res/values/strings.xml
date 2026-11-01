@@ -83,4 +83,11 @@
     <string name="mode_simple_desc">Editing tools are hidden for a clean, distraction-free view.</string>
     <string name="mode_advanced">Advanced Mode (Editing Enabled)</string>
     <string name="mode_advanced_desc">Crop, rotate, color adjustments, HD upscale &amp; video trim active.</string>
+    <string name="deletion_settings_title">File Deletion Settings</string>
+    <string name="confirm_delete_title">Ask Confirmation Before Delete</string>
+    <string name="confirm_delete_desc">When off, clicking trash immediately deletes without extra prompts.</string>
+    <string name="all_files_permission_title">Seamless Deletion Permission</string>
+    <string name="all_files_permission_granted">✅ All Files Access Granted (No confirmation popup on every delete)</string>
+    <string name="all_files_permission_needed">⚙️ Grant All Files Access</string>
+    <string name="all_files_permission_desc">Grant All Files Access to prevent Android from asking for permission on every single photo deletion.</string>
 </resources>

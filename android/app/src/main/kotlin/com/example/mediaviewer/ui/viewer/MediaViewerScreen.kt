@@ -25,9 +25,11 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.automirrored.filled.RotateLeft
 import androidx.compose.material.icons.automirrored.filled.RotateRight
 import androidx.compose.material.icons.filled.Crop
@@ -133,10 +135,11 @@ fun MediaViewerScreen(
 
     val currentItem = items.getOrNull(pagerState.currentPage) ?: items.first()
 
-    // Reset rotation and flip when user swipes to a different photo
+    // Reset rotation, flip and zoom when user swipes to a different photo
     LaunchedEffect(pagerState.currentPage) {
         imageRotation = 0f
         isImageFlipped = false
+        isCurrentZoomed = false
     }
 
     BackHandler {
@@ -152,6 +155,8 @@ fun MediaViewerScreen(
         HorizontalPager(
             state = pagerState,
             userScrollEnabled = !isCurrentZoomed,
+            beyondViewportPageCount = 1,
+            key = { page -> if (page in items.indices) items[page].uriString else page },
             modifier = Modifier.fillMaxSize()
         ) { page ->
             val item = items[page]
@@ -185,6 +190,66 @@ fun MediaViewerScreen(
                     AudioPlayerView(
                         item = item,
                         isCurrentPage = isCurrent
+                    )
+                }
+            }
+        }
+
+        // Left Navigation Arrow Button (Previous)
+        AnimatedVisibility(
+            visible = controlsVisible && pagerState.currentPage > 0,
+            enter = fadeIn(),
+            exit = fadeOut(),
+            modifier = Modifier.align(Alignment.CenterStart)
+        ) {
+            Surface(
+                shape = CircleShape,
+                color = Color.Black.copy(alpha = 0.55f),
+                modifier = Modifier
+                    .padding(start = 12.dp)
+                    .size(44.dp)
+            ) {
+                IconButton(
+                    onClick = {
+                        scope.launch {
+                            pagerState.animateScrollToPage(pagerState.currentPage - 1)
+                        }
+                    }
+                ) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                        contentDescription = "Önceki",
+                        tint = Color.White
+                    )
+                }
+            }
+        }
+
+        // Right Navigation Arrow Button (Next)
+        AnimatedVisibility(
+            visible = controlsVisible && pagerState.currentPage < items.size - 1,
+            enter = fadeIn(),
+            exit = fadeOut(),
+            modifier = Modifier.align(Alignment.CenterEnd)
+        ) {
+            Surface(
+                shape = CircleShape,
+                color = Color.Black.copy(alpha = 0.55f),
+                modifier = Modifier
+                    .padding(end = 12.dp)
+                    .size(44.dp)
+            ) {
+                IconButton(
+                    onClick = {
+                        scope.launch {
+                            pagerState.animateScrollToPage(pagerState.currentPage + 1)
+                        }
+                    }
+                ) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+                        contentDescription = "Sonraki",
+                        tint = Color.White
                     )
                 }
             }
@@ -277,10 +342,10 @@ fun MediaViewerScreen(
                     // Delete button
                     IconButton(
                         onClick = {
-                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-                                onDelete(currentItem)
-                            } else {
+                            if (SettingsManager.confirmDeleteState.value) {
                                 showDeleteDialog = true
+                            } else {
+                                onDelete(currentItem)
                             }
                         }
                     ) {
