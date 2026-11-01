@@ -99,22 +99,30 @@ object M3uParser {
                 val logoRegex = "tvg-logo=\"([^\"]+)\"".toRegex(RegexOption.IGNORE_CASE)
                 pendingLogo = logoRegex.find(line)?.groupValues?.get(1)
             } else if (!line.startsWith("#")) {
-                // Stream URL line
-                if (line.startsWith("http://", ignoreCase = true) ||
+                // Stream URL or file path line
+                val isNetworkStream = line.startsWith("http://", ignoreCase = true) ||
                     line.startsWith("https://", ignoreCase = true) ||
                     line.startsWith("rtsp://", ignoreCase = true) ||
-                    line.startsWith("rtmp://", ignoreCase = true)
-                ) {
-                    val title = pendingTitle ?: "Kanal ${entries.size + 1}"
-                    entries.add(
-                        M3uEntry(
-                            title = title,
-                            url = line,
-                            group = pendingGroup,
-                            logo = pendingLogo
-                        )
-                    )
+                    line.startsWith("rtmp://", ignoreCase = true) ||
+                    line.startsWith("udp://", ignoreCase = true)
+
+                val finalUrl = if (isNetworkStream || line.startsWith("content://") || line.startsWith("file://")) {
+                    line
+                } else if (line.startsWith("/")) {
+                    "file://$line"
+                } else {
+                    line
                 }
+
+                val title = pendingTitle ?: (if (isNetworkStream) "Kanal ${entries.size + 1}" else line.substringAfterLast('/').substringAfterLast('\\'))
+                entries.add(
+                    M3uEntry(
+                        title = title,
+                        url = finalUrl,
+                        group = pendingGroup,
+                        logo = pendingLogo
+                    )
+                )
                 pendingTitle = null
                 pendingGroup = null
                 pendingLogo = null

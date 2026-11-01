@@ -1191,13 +1191,26 @@ class VideoPlayer(QWidget):
     # ── Playback API ────────────────────────────────────────────────────
 
     def load_video(self, path: str | Path) -> None:
-        self._current_path = Path(path).resolve()
+        path_str = str(path).strip()
+        is_stream = path_str.startswith(("http://", "https://", "rtsp://", "rtmp://"))
+
+        if is_stream:
+            self._current_path = Path(path_str.split("?")[0])
+            url = QUrl(path_str)
+        else:
+            self._current_path = Path(path).resolve()
+            url = QUrl.fromLocalFile(str(self._current_path))
+
         self._has_video_frame = False
         self._luminance_analyzed = False
         self._adaptive_gamma_boost = 0.0
         self._adaptive_brightness_boost = 0
         self._video_view.hide_codec_banner()
-        self._codec_check_timer.start(5000)
+        if not is_stream:
+            self._codec_check_timer.start(5000)
+        else:
+            self._codec_check_timer.stop()
+
         if self._smart_enhance_active:
             self._video_view.set_smart_enhance(True)
 
@@ -1205,11 +1218,6 @@ class VideoPlayer(QWidget):
         self._player.setAudioOutput(self._audio_output)
         self._audio_attached = True
 
-        path_str = str(self._current_path)
-        if path_str.startswith(("http://", "https://", "rtsp://", "rtmp://")):
-            url = QUrl(path_str)
-        else:
-            url = QUrl.fromLocalFile(path_str)
         self._player.setSource(url)
         self._play_btn.setText("▶")
         self._time_label.setText("00:00 / 00:00")
@@ -1217,6 +1225,10 @@ class VideoPlayer(QWidget):
         self._video_view.fit_video()
         self._trim_panel.reset_for_video(0)
         self._player.play()
+
+    def load_media(self, path: str | Path) -> None:
+        """Alias for load_video to support generic media playback."""
+        self.load_video(path)
 
     def play_pause(self) -> None:
         self._attach_audio()

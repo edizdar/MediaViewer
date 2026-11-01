@@ -26,10 +26,11 @@ PLAYLIST_FILTER = "Oynatma Listesi (*.mvpl);;JSON Dosyaları (*.json);;Tüm Dosy
 
 
 class PlaylistManager:
-    """Data model: an ordered list of media file paths with a cursor."""
+    """Data model: an ordered list of media file paths or stream URLs with a cursor."""
 
     def __init__(self) -> None:
-        self._files: list[Path] = []
+        self._files: list[Path | str] = []
+        self._titles: dict[str, str] = {}
         self._current_index: int = -1
         self._name: str = "Yeni Liste"
         self._save_path: Optional[Path] = None
@@ -46,7 +47,7 @@ class PlaylistManager:
         self._name = value
 
     @property
-    def files(self) -> list[Path]:
+    def files(self) -> list[Path | str]:
         return list(self._files)
 
     @property
@@ -58,7 +59,7 @@ class PlaylistManager:
         return self._current_index
 
     @property
-    def current_file(self) -> Optional[Path]:
+    def current_file(self) -> Optional[Path | str]:
         if 0 <= self._current_index < len(self._files):
             return self._files[self._current_index]
         return None
@@ -77,14 +78,36 @@ class PlaylistManager:
 
     # ── Mutation ────────────────────────────────────────────────────────
 
-    def add_file(self, path: Path) -> None:
-        """Add a single file to the end of the playlist."""
-        path = Path(path).resolve()
-        if path.suffix.lower() in FileManager.ALL_EXTENSIONS:
-            self._files.append(path)
+    def get_title(self, target: Path | str) -> str:
+        key = str(target)
+        if key in self._titles:
+            return self._titles[key]
+        if isinstance(target, Path):
+            return target.name
+        return target.split("/")[-1].split("?")[0] or target
+
+    def add_entry(self, target: Path | str, title: str = "") -> None:
+        """Add a single file path or stream URL to the playlist."""
+        target_str = str(target).strip()
+        if target_str.startswith(("http://", "https://", "rtsp://", "rtmp://", "udp://")):
+            self._files.append(target_str)
+            if title:
+                self._titles[target_str] = title
             self._modified = True
             if self._current_index == -1:
                 self._current_index = 0
+        else:
+            p = Path(target_str).resolve()
+            self._files.append(p)
+            if title:
+                self._titles[str(p)] = title
+            self._modified = True
+            if self._current_index == -1:
+                self._current_index = 0
+
+    def add_file(self, path: Path) -> None:
+        """Add a single file to the end of the playlist."""
+        self.add_entry(path)
 
     def add_files(self, paths: list[Path]) -> None:
         for p in paths:
@@ -92,7 +115,8 @@ class PlaylistManager:
 
     def remove_at(self, index: int) -> None:
         if 0 <= index < len(self._files):
-            self._files.pop(index)
+            removed = self._files.pop(index)
+            self._titles.pop(str(removed), None)
             self._modified = True
             if self._current_index >= len(self._files):
                 self._current_index = len(self._files) - 1
@@ -127,24 +151,25 @@ class PlaylistManager:
 
     def clear(self) -> None:
         self._files.clear()
+        self._titles.clear()
         self._current_index = -1
         self._modified = True
 
     # ── Navigation ──────────────────────────────────────────────────────
 
-    def go_to(self, index: int) -> Optional[Path]:
+    def go_to(self, index: int) -> Optional[Path | str]:
         if 0 <= index < len(self._files):
             self._current_index = index
             return self.current_file
         return None
 
-    def next_file(self) -> Optional[Path]:
+    def next_file(self) -> Optional[Path | str]:
         if not self._files:
             return None
         self._current_index = (self._current_index + 1) % len(self._files)
         return self.current_file
 
-    def previous_file(self) -> Optional[Path]:
+    def previous_file(self) -> Optional[Path | str]:
         if not self._files:
             return None
         self._current_index = (self._current_index - 1) % len(self._files)
@@ -156,6 +181,7 @@ class PlaylistManager:
         data = {
             "name": self._name,
             "files": [str(f) for f in self._files],
+            "titles": self._titles,
         }
         path = Path(path)
         if not path.suffix:
@@ -168,9 +194,16 @@ class PlaylistManager:
         try:
             data = json.loads(Path(path).read_text(encoding="utf-8"))
             self._name = data.get("name", Path(path).stem)
-            self._files = [Path(f) for f in data.get("files", [])]
-            # Remove non-existent files silently
-            self._files = [f for f in self._files if f.exists()]
+            raw_files = data.get("files", [])
+            self._titles = data.get("titles", {})
+            self._files = []
+            for f in raw_files:
+                if str(f).startswith(("http://", "https://", "rtsp://", "rtmp://", "udp://")):
+                    self._files.append(str(f))
+                else:
+                    p = Path(f)
+                    if p.exists():
+                        self._files.append(p)
             self._current_index = 0 if self._files else -1
             self._save_path = Path(path)
             self._modified = False
@@ -180,6 +213,7 @@ class PlaylistManager:
 
     def new(self, name: str = "Yeni Liste") -> None:
         self._files.clear()
+        self._titles.clear()
         self._current_index = -1
         self._name = name
         self._save_path = None
@@ -188,9 +222,12 @@ class PlaylistManager:
 
 # ── Helpers ─────────────────────────────────────────────────────────────
 
-def _file_icon(path: Path) -> str:
-    """Return an emoji icon based on file type."""
-    ext = path.suffix.lower()
+def _file_icon(path: Path | str) -> str:
+    """Return an emoji icon based on file or stream type."""
+    path_str = str(path).lower()
+    if path_str.startswith(("http://", "https://", "rtsp://", "rtmp://", "udp://")):
+        return "📺"
+    ext = Path(path_str.split("?")[0]).suffix.lower()
     if ext in FileManager.IMAGE_EXTENSIONS:
         return "🖼"
     elif ext in FileManager.VIDEO_EXTENSIONS:
@@ -495,20 +532,29 @@ class PlaylistPanel(QWidget):
         if path:
             self.file_selected.emit(str(path))
 
-    # ── Refresh ─────────────────────────────────────────────────────────
+    # ── Refresh & M3U ───────────────────────────────────────────────────
+
+    def load_m3u(self, entries: list[tuple[str, str]], name: str = "M3U Listesi") -> None:
+        """Load parsed M3U items (title, url_or_path) and refresh list."""
+        self._manager.new(name)
+        for title, target in entries:
+            self._manager.add_entry(target, title=title)
+        self._name_label.setText(name)
+        self._refresh_list()
 
     def _refresh_list(self) -> None:
         """Rebuild the QListWidget from the manager's file list."""
         self._list_widget.clear()
         for f in self._manager.files:
             icon = _file_icon(f)
-            item = QListWidgetItem(f"{icon}  {f.name}")
+            title = self._manager.get_title(f)
+            item = QListWidgetItem(f"{icon}  {title}")
             item.setToolTip(str(f))
             self._list_widget.addItem(item)
 
         count = self._manager.count
         self._count_label.setText(
-            f"{count} dosya" if count != 1 else "1 dosya"
+            f"{count} medya / kanal" if count != 1 else "1 medya / kanal"
         )
 
         if self._manager.current_index >= 0:

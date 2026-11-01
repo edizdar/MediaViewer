@@ -512,45 +512,62 @@ class MainWindow(QMainWindow):
         self._video_player.cleanup()
 
         self._stack.setCurrentIndex(2)
-        self._video_player.load_media(url)
+        self._video_player.load_video(url)
         self._video_player.play()
 
         display_name = name or url.split("/")[-1].split("?")[0] or "Canlı Ağ Akışı"
         mode_str = "⚡ Düşük Gecikme" if buffer_mode == "low_latency" else "⚖️ Dengeli"
-        self._top_toolbar.set_file_info(f"🔴 [{mode_str}] {display_name}", 1, 1)
+        self._top_toolbar.set_file_info(f"📺 [{mode_str}] {display_name}", 1, 1)
         self.setWindowTitle(f"MediaViewer - {display_name}")
 
     def _load_m3u_playlist(self, path: Path) -> None:
-        """Parse an M3U or M3U8 playlist file and load items into the playlist panel."""
+        """Parse an M3U or M3U8 playlist file, populate playlist panel, and play first item."""
         try:
             with open(path, "r", encoding="utf-8", errors="ignore") as f:
-                lines = f.readlines()
+                content = f.read()
         except Exception as e:
             QMessageBox.warning(self, "Hata", f"M3U dosyası okunamadı:\n{e}")
             return
 
-        urls = []
-        name = path.stem
-        for line in lines:
-            line = line.strip()
-            if not line or line.startswith("#"):
-                continue
-            urls.append(line)
+        lines = content.splitlines()
+        entries: list[tuple[str, str]] = []  # list of (title, target)
+        pending_title = ""
 
-        if not urls:
+        for raw_line in lines:
+            line = raw_line.strip()
+            if not line:
+                continue
+            if line.startswith("#EXTINF:"):
+                # Parse title after comma: #EXTINF:-1 tvg-name="TRT",TRT 1
+                comma_idx = line.rfind(",")
+                if comma_idx != -1 and comma_idx < len(line) - 1:
+                    pending_title = line[comma_idx + 1:].strip()
+                else:
+                    pending_title = f"Kanal {len(entries) + 1}"
+            elif not line.startswith("#"):
+                # Stream URL or local path
+                item_title = pending_title if pending_title else (Path(line).stem if "://" not in line else line.split("/")[-1].split("?")[0])
+                pending_title = ""
+                entries.append((item_title, line))
+
+        if not entries:
             QMessageBox.information(self, "Bilgi", "M3U oynatma listesinde geçerli akış/dosya bulunamadı.")
             return
 
+        # Show playlist panel and populate items
         self._playlist_panel.setVisible(True)
-        first = urls[0]
-        if first.startswith(("http://", "https://", "rtsp://", "rtmp://")):
-            self.open_stream(first, name=f"{name} - 1")
+        self._playlist_panel.load_m3u(entries, name=path.stem)
+
+        # Open and play first item
+        first_title, first_target = entries[0]
+        if first_target.startswith(("http://", "https://", "rtsp://", "rtmp://")):
+            self.open_stream(first_target, name=first_title)
         else:
-            resolved_p = (path.parent / first).resolve() if not Path(first).is_absolute() else Path(first)
+            resolved_p = (path.parent / first_target).resolve() if not Path(first_target).is_absolute() else Path(first_target)
             if resolved_p.exists():
                 self.open_file(resolved_p)
             else:
-                self.open_stream(first)
+                self.open_stream(first_target, name=first_title)
 
     def open_file(self, path: str | Path) -> None:
         """Open and display the given file or URL."""

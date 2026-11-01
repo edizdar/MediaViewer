@@ -69,7 +69,28 @@ class MediaViewModel(
     fun openExternalUri(context: Context, uri: Uri, onLoaded: () -> Unit = {}) {
         viewModelScope.launch {
             val pathOrUri = uri.toString().lowercase()
-            if (pathOrUri.endsWith(".m3u") || pathOrUri.endsWith(".m3u8")) {
+            val mime = context.contentResolver.getType(uri)?.lowercase() ?: ""
+            var isM3u = pathOrUri.endsWith(".m3u") || pathOrUri.endsWith(".m3u8") ||
+                    mime.contains("mpegurl") || mime.contains("m3u")
+
+            if (!isM3u) {
+                try {
+                    context.contentResolver.query(
+                        uri,
+                        arrayOf(android.provider.OpenableColumns.DISPLAY_NAME),
+                        null, null, null
+                    )?.use { cursor ->
+                        if (cursor.moveToFirst()) {
+                            val name = cursor.getString(0)?.lowercase() ?: ""
+                            if (name.endsWith(".m3u") || name.endsWith(".m3u8")) {
+                                isM3u = true
+                            }
+                        }
+                    }
+                } catch (_: Exception) {}
+            }
+
+            if (isM3u) {
                 val parsedItems = com.example.mediaviewer.util.M3uParser.parseFromUri(context, uri)
                 if (parsedItems.isNotEmpty()) {
                     _viewerState.value = ViewerUiState(
