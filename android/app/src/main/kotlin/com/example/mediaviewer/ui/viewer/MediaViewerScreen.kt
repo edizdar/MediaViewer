@@ -38,6 +38,12 @@ import androidx.compose.material.icons.filled.Crop
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Flip
 import androidx.compose.material.icons.filled.HighQuality
+import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.HorizontalDivider
+import com.example.mediaviewer.ui.dialogs.SettingsDialog
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.QueueMusic
@@ -124,6 +130,8 @@ fun MediaViewerScreen(
 
     // Dialog & Sheet States
     var showInfoDialog by remember { mutableStateOf(false) }
+    var showViewerTopMenu by remember { mutableStateOf(false) }
+    var showViewerSettingsDialog by remember { mutableStateOf(false) }
     var showDeleteDialog by remember { mutableStateOf(false) }
     var showAdjustmentSheet by remember { mutableStateOf(false) }
     var showUpscaleDialog by remember { mutableStateOf(false) }
@@ -315,15 +323,6 @@ fun MediaViewerScreen(
                         )
                     }
 
-                    // Playlist Filmstrip toggle
-                    IconButton(onClick = { showPlaylistFilmstrip = !showPlaylistFilmstrip }) {
-                        Icon(
-                            imageVector = Icons.Default.QueueMusic,
-                            contentDescription = "Oynatma Listesi / Şerit",
-                            tint = if (showPlaylistFilmstrip) AccentCyan else Color.White
-                        )
-                    }
-
                     val isStream = currentItem.uriString.startsWith("http://") || 
                         currentItem.uriString.startsWith("https://") || 
                         currentItem.uriString.startsWith("rtsp://")
@@ -332,7 +331,7 @@ fun MediaViewerScreen(
                         mutableStateOf(StreamManager.getSavedStreams(context).any { it.url == currentItem.uriString })
                     }
 
-                    // Share button
+                    // Quick Action: Share
                     IconButton(
                         onClick = {
                             val shareIntent = Intent(Intent.ACTION_SEND).apply {
@@ -356,7 +355,7 @@ fun MediaViewerScreen(
                     }
 
                     if (isStream) {
-                        // Bookmark Stream button
+                        // Quick Action: Bookmark Stream
                         IconButton(
                             onClick = {
                                 if (isStreamSaved) {
@@ -386,7 +385,7 @@ fun MediaViewerScreen(
                             )
                         }
                     } else {
-                        // Delete button (local files only)
+                        // Quick Action: Delete
                         IconButton(
                             onClick = {
                                 if (SettingsManager.confirmDeleteState.value) {
@@ -404,13 +403,70 @@ fun MediaViewerScreen(
                         }
                     }
 
-                    // Info button
-                    IconButton(onClick = { showInfoDialog = true }) {
-                        Icon(
-                            imageVector = Icons.Default.Info,
-                            contentDescription = "Bilgi",
-                            tint = Color.White
-                        )
+                    // Clean Top-Right Overflow Menu (⋮)
+                    Box {
+                        IconButton(onClick = { showViewerTopMenu = true }) {
+                            Icon(
+                                imageVector = Icons.Default.MoreVert,
+                                contentDescription = "Diğer",
+                                tint = Color.White
+                            )
+                        }
+
+                        DropdownMenu(
+                            expanded = showViewerTopMenu,
+                            onDismissRequest = { showViewerTopMenu = false }
+                        ) {
+                            DropdownMenuItem(
+                                text = { Text(if (showPlaylistFilmstrip) "Oynatma Şeridini Gizle" else "Oynatma Şeridini Göster") },
+                                leadingIcon = {
+                                    Icon(
+                                        imageVector = Icons.Default.QueueMusic,
+                                        contentDescription = null,
+                                        tint = if (showPlaylistFilmstrip) AccentCyan else TextSecondary,
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                },
+                                onClick = {
+                                    showViewerTopMenu = false
+                                    showPlaylistFilmstrip = !showPlaylistFilmstrip
+                                }
+                            )
+
+                            DropdownMenuItem(
+                                text = { Text("Medya Bilgileri") },
+                                leadingIcon = {
+                                    Icon(
+                                        imageVector = Icons.Default.Info,
+                                        contentDescription = null,
+                                        tint = AccentCyan,
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                },
+                                onClick = {
+                                    showViewerTopMenu = false
+                                    showInfoDialog = true
+                                }
+                            )
+
+                            HorizontalDivider()
+
+                            DropdownMenuItem(
+                                text = { Text(stringResource(R.string.settings)) },
+                                leadingIcon = {
+                                    Icon(
+                                        imageVector = Icons.Default.Settings,
+                                        contentDescription = null,
+                                        tint = TextSecondary,
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                },
+                                onClick = {
+                                    showViewerTopMenu = false
+                                    showViewerSettingsDialog = true
+                                }
+                            )
+                        }
                     }
                 }
             }
@@ -526,6 +582,14 @@ fun MediaViewerScreen(
             MediaInfoDialog(
                 item = currentItem,
                 onDismiss = { showInfoDialog = false }
+            )
+        }
+
+        if (showViewerSettingsDialog) {
+            SettingsDialog(
+                onDismiss = { showViewerSettingsDialog = false },
+                onLanguageSelected = { showViewerSettingsDialog = false },
+                onCheckUpdates = {}
             )
         }
 

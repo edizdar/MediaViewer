@@ -1,9 +1,9 @@
 {
-  "version": "1.3.0",
-  "tag_name": "v1.3.0",
-  "release_name": "Media Viewer v1.3.0",
-  "changelog": "• Ağ akışları desteği eklendi: RTSP, HLS (.m3u8), M3U oynatma listeleri ve HTTP canlı yayınlar\n• Ağ gecikme & tampon kontrolü: IP kameralar için Düşük Gecikme (Low Latency / TCP) ve IPTV için Dengeli Tampon seçenekleri\n• Kalite seçimi (Otomatik, 1080p, 720p, 480p, 360p), canlı anlık görüntü (ekran görüntüsü) kaydetme ve akışları yer işaretlerine ekleme\n• Galeri fotoğraf kaydırma (swipe) ve silme izinleri (Tüm Dosyalara Erişim) optimize edildi",
-  "download_apk_url": "https://github.com/edizdar/MediaViewer/releases/download/v1.3.0/MediaViewer.apk",
-  "download_exe_url": "https://github.com/edizdar/MediaViewer/releases/download/v1.3.0/MediaViewer_v1.3.0.exe",
-  "release_page_url": "https://github.com/edizdar/MediaViewer/releases/tag/v1.3.0"
+  "version": "1.3.1",
+  "tag_name": "v1.3.1",
+  "release_name": "Media Viewer v1.3.1",
+  "changelog": "• Sağ üst köşe menüleri sadeleştirildi: Android ve Masaüstünde dağınık butonlar yerine modern açılır menü (⋮ / ⚙️ Menü) eklendi\n• Android Galeri ve Görüntüleyici: Sadeleştirilmiş üst çubuk, hızlı butonlar ve düzenli açılır menü (Ağ Akışı, Oynatma Şeridi, Medya Bilgisi, Ayarlar, Hakkında)\n• Masaüstü Üst Araç Çubuğu: '⚙️ Menü' ile tek noktadan Akışlar, Çalışma Modu (Basit/Gelişmiş), Dil, Güncelleme Denetimi ve Geliştirici Bilgileri\n• Android dosya silme izinleri ve Realme UI / ColorOS uyumluluğu güçlendirildi",
+  "download_apk_url": "https://github.com/edizdar/MediaViewer/releases/download/v1.3.1/MediaViewer.apk",
+  "download_exe_url": "https://github.com/edizdar/MediaViewer/releases/download/v1.3.1/MediaViewer_v1.3.1.exe",
+  "release_page_url": "https://github.com/edizdar/MediaViewer/releases/tag/v1.3.1"
 }

@@ -288,4 +288,10 @@ QMenu::item:selected {{
     background-color: {COLORS["surface0"]};
     color: {COLORS["blue"]};
 }}
+
+QMenu::separator {{
+    height: 1px;
+    background-color: {COLORS["surface1"]};
+    margin: 4px 6px;
+}}
 """

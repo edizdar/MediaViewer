@@ -211,7 +211,11 @@ class MainWindow(QMainWindow):
         self._top_toolbar.playlist_toggled.connect(self._toggle_playlist)
         self._top_toolbar.help_clicked.connect(self._show_help_dialog)
         self._top_toolbar.language_clicked.connect(self._toggle_language)
+        self._top_toolbar.language_selected.connect(self._set_language)
         self._top_toolbar.mode_toggled.connect(self._toggle_mode)
+        self._top_toolbar.mode_selected.connect(self.set_mode)
+        self._top_toolbar.check_updates_clicked.connect(self._manual_check_for_updates)
+        self._top_toolbar.about_clicked.connect(self._show_about_dialog)
 
         # Bottom toolbar
         self._bottom_toolbar.zoom_in_clicked.connect(self._image_viewer.zoom_in)
@@ -761,6 +765,58 @@ class MainWindow(QMainWindow):
         self._bottom_toolbar.retranslate_ui()
         self._retranslate_ui()
         self._show_toast(get_localization().get_toast_message())
+
+    def _set_language(self, lang_code: str) -> None:
+        """Set language specifically ('auto', 'tr', or 'en')."""
+        loc_mgr = get_localization()
+        loc_mgr.set_mode(lang_code)
+        self._top_toolbar.retranslate_ui()
+        self._bottom_toolbar.retranslate_ui()
+        self._retranslate_ui()
+        self._show_toast(loc_mgr.get_toast_message())
+
+    def _manual_check_for_updates(self) -> None:
+        """Trigger an on-demand update check and notify the user."""
+        from app import __version__
+        cur_lang = get_localization().current_language
+        self._show_toast("Güncellemeler denetleniyor..." if cur_lang == "tr" else "Checking for updates...")
+        self._manual_update_worker = UpdateCheckWorker(self)
+
+        def on_finished(success: bool, info: Optional[UpdateInfo], msg: str) -> None:
+            if success and info is not None:
+                self._show_update_dialog(info)
+            else:
+                if success and info is None:
+                    txt = f"En son sürümü kullanıyorsunuz (v{__version__})" if cur_lang == "tr" else f"You are using the latest version (v{__version__})"
+                else:
+                    txt = "Güncelleme sunucusuna bağlanılamadı" if cur_lang == "tr" else "Could not reach update server"
+                self._show_toast(txt)
+
+        self._manual_update_worker.finished_check.connect(on_finished)
+        self._manual_update_worker.start()
+
+    def _show_about_dialog(self) -> None:
+        """Show About & Developer Information dialog."""
+        from PySide6.QtWidgets import QMessageBox
+        from app import __version__
+        cur_lang = get_localization().current_language
+        title = "Hakkında & Geliştirici" if cur_lang == "tr" else "About & Developer"
+        text = (
+            f"<h3>MediaViewer v{__version__}</h3>"
+            f"<p>{'Hızlı, modern ve güçlü medya görüntüleyici & düzenleyici.' if cur_lang == 'tr' else 'Fast, modern, and powerful media viewer & editor.'}</p>"
+            f"<p><b>{'Geliştirici' if cur_lang == 'tr' else 'Developer'}:</b> Erol Dizdar<br>"
+            f"<b>Web:</b> <a href='https://www.eroldizdar.tr' style='color: #89b4fa;'>https://www.eroldizdar.tr</a><br>"
+            f"<b>GitHub:</b> <a href='https://github.com/eroldizdar/media-viewer' style='color: #89b4fa;'>github.com/eroldizdar/media-viewer</a></p>"
+            f"<hr>"
+            f"<p style='color: #a6adc8; font-size: 11px;'>{'Resim, Video, Ses ve RTSP / HLS / M3U Ağ Akışları Desteği' if cur_lang == 'tr' else 'Images, Videos, Audio, and RTSP / HLS / M3U Stream Support'}</p>"
+        )
+        msg_box = QMessageBox(self)
+        msg_box.setWindowTitle(title)
+        msg_box.setTextFormat(Qt.TextFormat.RichText)
+        msg_box.setText(text)
+        msg_box.setIcon(QMessageBox.Icon.Information)
+        msg_box.setStandardButtons(QMessageBox.StandardButton.Ok)
+        msg_box.exec()
 
     def _retranslate_ui(self) -> None:
         """Update window title and child texts on language change."""

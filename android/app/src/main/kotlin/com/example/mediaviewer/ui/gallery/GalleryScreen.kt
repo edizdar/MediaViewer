@@ -2,7 +2,9 @@ package com.example.mediaviewer.ui.gallery
 
 import android.Manifest
 import android.content.Context
+import android.content.Intent
 import android.content.pm.PackageManager
+import android.net.Uri
 import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -34,6 +36,8 @@ import androidx.compose.material.icons.filled.Audiotrack
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.FolderOpen
 import androidx.compose.material.icons.filled.Image
+import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.filled.LiveTv
 import androidx.compose.material.icons.filled.PlayArrow
@@ -44,11 +48,15 @@ import androidx.compose.material.icons.filled.Videocam
 import com.example.mediaviewer.ui.dialogs.NetworkStreamDialog
 import com.example.mediaviewer.ui.dialogs.SettingsDialog
 import com.example.mediaviewer.ui.theme.AccentCyan
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
@@ -151,6 +159,8 @@ fun GalleryScreen(
 
     var showSettingsDialog by remember { mutableStateOf(false) }
     var showStreamDialog by remember { mutableStateOf(false) }
+    var showTopMenu by remember { mutableStateOf(false) }
+    var showAboutDialog by remember { mutableStateOf(false) }
     var updateInfo by remember { mutableStateOf<AppUpdateInfo?>(null) }
     var showUpdateBanner by remember { mutableStateOf(false) }
     val coroutineScope = rememberCoroutineScope()
@@ -206,20 +216,7 @@ fun GalleryScreen(
                     }
                 },
                 actions = {
-                    IconButton(onClick = { showStreamDialog = true }) {
-                        Icon(
-                            imageVector = Icons.Default.LiveTv,
-                            contentDescription = stringResource(R.string.stream_open),
-                            tint = AccentCyan
-                        )
-                    }
-                    IconButton(onClick = { showSettingsDialog = true }) {
-                        Icon(
-                            imageVector = Icons.Default.Settings,
-                            contentDescription = stringResource(R.string.settings),
-                            tint = TextSecondary
-                        )
-                    }
+                    // Quick Action: Open File
                     IconButton(
                         onClick = {
                             filePickerLauncher.launch(
@@ -233,12 +230,87 @@ fun GalleryScreen(
                             tint = AccentBlue
                         )
                     }
-                    IconButton(onClick = { viewModel.loadMedia(context) }) {
-                        Icon(
-                            imageVector = Icons.Default.Refresh,
-                            contentDescription = stringResource(R.string.refresh),
-                            tint = TextSecondary
-                        )
+
+                    // Clean Top-Right Overflow Menu (⋮)
+                    Box {
+                        IconButton(onClick = { showTopMenu = true }) {
+                            Icon(
+                                imageVector = Icons.Default.MoreVert,
+                                contentDescription = "Menü",
+                                tint = TextPrimary
+                            )
+                        }
+
+                        DropdownMenu(
+                            expanded = showTopMenu,
+                            onDismissRequest = { showTopMenu = false }
+                        ) {
+                            DropdownMenuItem(
+                                text = { Text(stringResource(R.string.stream_open)) },
+                                leadingIcon = {
+                                    Icon(
+                                        imageVector = Icons.Default.LiveTv,
+                                        contentDescription = null,
+                                        tint = AccentCyan,
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                },
+                                onClick = {
+                                    showTopMenu = false
+                                    showStreamDialog = true
+                                }
+                            )
+
+                            DropdownMenuItem(
+                                text = { Text(stringResource(R.string.refresh)) },
+                                leadingIcon = {
+                                    Icon(
+                                        imageVector = Icons.Default.Refresh,
+                                        contentDescription = null,
+                                        tint = TextSecondary,
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                },
+                                onClick = {
+                                    showTopMenu = false
+                                    viewModel.loadMedia(context)
+                                }
+                            )
+
+                            HorizontalDivider()
+
+                            DropdownMenuItem(
+                                text = { Text(stringResource(R.string.settings)) },
+                                leadingIcon = {
+                                    Icon(
+                                        imageVector = Icons.Default.Settings,
+                                        contentDescription = null,
+                                        tint = TextSecondary,
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                },
+                                onClick = {
+                                    showTopMenu = false
+                                    showSettingsDialog = true
+                                }
+                            )
+
+                            DropdownMenuItem(
+                                text = { Text("Hakkında & Geliştirici") },
+                                leadingIcon = {
+                                    Icon(
+                                        imageVector = Icons.Default.Info,
+                                        contentDescription = null,
+                                        tint = AccentCyan,
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                },
+                                onClick = {
+                                    showTopMenu = false
+                                    showAboutDialog = true
+                                }
+                            )
+                        }
                     }
                 }
             )
@@ -395,6 +467,58 @@ fun GalleryScreen(
                         } else {
                             Toast.makeText(context, context.getString(R.string.update_check_failed), Toast.LENGTH_LONG).show()
                         }
+                    }
+                }
+            )
+        }
+
+        if (showAboutDialog) {
+            AlertDialog(
+                onDismissRequest = { showAboutDialog = false },
+                shape = RoundedCornerShape(16.dp),
+                title = {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        Image(
+                            painter = painterResource(R.drawable.app_logo),
+                            contentDescription = null,
+                            modifier = Modifier
+                                .size(32.dp)
+                                .clip(RoundedCornerShape(8.dp))
+                        )
+                        Column {
+                            Text("Media Viewer", fontWeight = FontWeight.Bold, fontSize = 17.sp)
+                            Text("v1.3.1", fontSize = 12.sp, color = AccentCyan)
+                        }
+                    }
+                },
+                text = {
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text(
+                            "Fotoğraf, video ve canlı ağ akışlarını (RTSP / HLS / M3U) tek çatı altında oynatabileceğiniz modern ve akıcı medya görüntüleyici.",
+                            fontSize = 13.sp,
+                            color = TextSecondary
+                        )
+                        HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
+                        Text("👨‍💻 Geliştirici: Erol Dizdar", fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
+                        Text(
+                            "🌐 Web: https://www.eroldizdar.tr",
+                            color = AccentCyan,
+                            fontSize = 13.sp,
+                            modifier = Modifier.clickable {
+                                try {
+                                    val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://www.eroldizdar.tr"))
+                                    context.startActivity(intent)
+                                } catch (_: Exception) {}
+                            }
+                        )
+                    }
+                },
+                confirmButton = {
+                    TextButton(onClick = { showAboutDialog = false }) {
+                        Text("Kapat")
                     }
                 }
             )

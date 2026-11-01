@@ -33,7 +33,7 @@ def _icon_button(text: str, tooltip: str = "") -> QPushButton:
 
 
 class TopToolbar(QWidget):
-    """Top toolbar with file operations and navigation."""
+    """Top toolbar with file operations, navigation, and clean popup menu."""
 
     open_file_clicked = Signal()
     open_stream_clicked = Signal()
@@ -43,7 +43,11 @@ class TopToolbar(QWidget):
     playlist_toggled = Signal()
     help_clicked = Signal()
     language_clicked = Signal()
+    language_selected = Signal(str)
     mode_toggled = Signal()
+    mode_selected = Signal(str)
+    check_updates_clicked = Signal()
+    about_clicked = Signal()
 
     def __init__(self, parent=None) -> None:
         super().__init__(parent)
@@ -63,12 +67,12 @@ class TopToolbar(QWidget):
         self._open_btn.clicked.connect(self.open_file_clicked)
         layout.addWidget(self._open_btn)
 
-        # Open network stream button
+        # Open network stream button (quick access)
         self._stream_btn = _icon_button("📺", "Ağ Akışı Aç (RTSP / HLS / M3U) (Ctrl+U)")
         self._stream_btn.clicked.connect(self.open_stream_clicked)
         layout.addWidget(self._stream_btn)
 
-        # Playlist toggle button
+        # Playlist toggle button (quick access)
         self._playlist_btn = _icon_button("📋", loc("playlist_tip"))
         self._playlist_btn.clicked.connect(self.playlist_toggled)
         layout.addWidget(self._playlist_btn)
@@ -115,46 +119,98 @@ class TopToolbar(QWidget):
 
         layout.addWidget(_separator())
 
-        # Mode button (Basit Görüntüleme / Gelişmiş Düzenleme)
-        self._mode_btn = _icon_button(self._get_mode_btn_text(), loc("mode_tip"))
-        self._mode_btn.setStyleSheet(
-            "QPushButton { font-weight: bold; font-size: 12px; min-width: 65px; padding: 2px 8px; }"
+        # Unified Top-Right Overflow Menu (⚙️ Menü)
+        self._menu_btn = QPushButton("⚙️  Menü")
+        self._menu_btn.setObjectName("iconButton")
+        self._menu_btn.setToolTip("Menü ve Ayarlar")
+        self._menu_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        self._menu_btn.setStyleSheet(
+            "QPushButton { font-weight: bold; font-size: 13px; min-width: 80px; padding: 4px 10px; }"
         )
-        self._mode_btn.clicked.connect(self.mode_toggled)
-        layout.addWidget(self._mode_btn)
+        self._menu_btn.clicked.connect(self._show_main_menu)
+        layout.addWidget(self._menu_btn)
 
-        layout.addWidget(_separator())
+    def _show_main_menu(self) -> None:
+        """Display clean top-right popup menu with modes, settings, streams and about."""
+        from PySide6.QtWidgets import QMenu
+        from PySide6.QtGui import QActionGroup
+        from PySide6.QtCore import QPoint
 
-        # Language toggle button
-        self._lang_btn = _icon_button(self._get_lang_btn_text(), loc("lang_tip"))
-        self._lang_btn.setStyleSheet(
-            "QPushButton { font-weight: bold; font-size: 12px; min-width: 52px; padding: 2px 6px; }"
-        )
-        self._lang_btn.clicked.connect(self.language_clicked)
-        layout.addWidget(self._lang_btn)
+        menu = QMenu(self)
+        loc_mgr = get_localization()
+        current_lang = loc_mgr.current_language
+        lang_mode = loc_mgr.mode
 
-        layout.addWidget(_separator())
+        # 1. Media Actions
+        stream_act = menu.addAction("📺  " + ("Ağ Akışı Aç (RTSP / HLS / M3U)..." if current_lang == "tr" else "Open Network Stream (RTSP / HLS / M3U)..."))
+        stream_act.setShortcut("Ctrl+U")
+        stream_act.triggered.connect(self.open_stream_clicked.emit)
 
-        # Help / Guide button
-        self._help_btn = _icon_button("❓", loc("help_tip"))
-        self._help_btn.clicked.connect(self.help_clicked)
-        layout.addWidget(self._help_btn)
+        playlist_act = menu.addAction("📋  " + loc("playlist_tip"))
+        playlist_act.setShortcut("Ctrl+L")
+        playlist_act.triggered.connect(self.playlist_toggled.emit)
 
-    def _get_mode_btn_text(self) -> str:
-        if self._mode == "simple":
-            return loc("mode_btn_simple")
-        return loc("mode_btn_edit")
+        menu.addSeparator()
+
+        # 2. Modes Submenu / Actions
+        mode_menu = menu.addMenu("🎨  " + ("Çalışma Modu" if current_lang == "tr" else "App Mode"))
+        mode_group = QActionGroup(self)
+        mode_group.setExclusive(True)
+
+        simple_act = mode_menu.addAction("👁️ " + loc("mode_btn_simple"))
+        simple_act.setCheckable(True)
+        simple_act.setChecked(self._mode == "simple")
+        simple_act.triggered.connect(lambda: self.mode_selected.emit("simple"))
+        mode_group.addAction(simple_act)
+
+        edit_act = mode_menu.addAction("🛠️ " + loc("mode_btn_edit"))
+        edit_act.setCheckable(True)
+        edit_act.setChecked(self._mode == "advanced")
+        edit_act.triggered.connect(lambda: self.mode_selected.emit("advanced"))
+        mode_group.addAction(edit_act)
+
+        # 3. Language Submenu
+        lang_menu = menu.addMenu("🌐  " + ("Dil / Language" if current_lang == "tr" else "Language / Dil"))
+        lang_group = QActionGroup(self)
+        lang_group.setExclusive(True)
+
+        auto_act = lang_menu.addAction("🌐 " + ("Otomatik (Sistem)" if current_lang == "tr" else "Auto (System)"))
+        auto_act.setCheckable(True)
+        auto_act.setChecked(lang_mode == "auto")
+        auto_act.triggered.connect(lambda: self.language_selected.emit("auto"))
+        lang_group.addAction(auto_act)
+
+        tr_act = lang_menu.addAction("🇹🇷 Türkçe")
+        tr_act.setCheckable(True)
+        tr_act.setChecked(lang_mode == "manual" and current_lang == "tr")
+        tr_act.triggered.connect(lambda: self.language_selected.emit("tr"))
+        lang_group.addAction(tr_act)
+
+        en_act = lang_menu.addAction("🇬🇧 English")
+        en_act.setCheckable(True)
+        en_act.setChecked(lang_mode == "manual" and current_lang == "en")
+        en_act.triggered.connect(lambda: self.language_selected.emit("en"))
+        lang_group.addAction(en_act)
+
+        menu.addSeparator()
+
+        # 4. Updates, Help, About
+        update_act = menu.addAction("🔄  " + ("Güncellemeleri Denetle..." if current_lang == "tr" else "Check for Updates..."))
+        update_act.triggered.connect(self.check_updates_clicked.emit)
+
+        help_act = menu.addAction("❓  " + loc("help_tip"))
+        help_act.setShortcut("F1")
+        help_act.triggered.connect(self.help_clicked.emit)
+
+        about_act = menu.addAction("ℹ️  " + ("Hakkında & Geliştirici" if current_lang == "tr" else "About & Developer"))
+        about_act.triggered.connect(self.about_clicked.emit)
+
+        # Show below menu button
+        pos = self._menu_btn.mapToGlobal(QPoint(0, self._menu_btn.height() + 2))
+        menu.exec(pos)
 
     def set_mode(self, mode: str) -> None:
         self._mode = mode
-        self._mode_btn.setText(self._get_mode_btn_text())
-
-    def _get_lang_btn_text(self) -> str:
-        loc_mgr = get_localization()
-        lang = loc_mgr.current_language.upper()
-        if loc_mgr.mode == "auto":
-            return f"🌐 AUTO ({lang})"
-        return f"🌐 {lang}"
 
     def retranslate_ui(self) -> None:
         """Update tooltips and labels when language changes."""
@@ -164,11 +220,9 @@ class TopToolbar(QWidget):
         self._prev_btn.setToolTip(loc("prev_tip"))
         self._next_btn.setToolTip(loc("next_tip"))
         self._fullscreen_btn.setToolTip(loc("fullscreen_tip"))
-        self._mode_btn.setText(self._get_mode_btn_text())
-        self._mode_btn.setToolTip(loc("mode_tip"))
-        self._lang_btn.setText(self._get_lang_btn_text())
-        self._lang_btn.setToolTip(loc("lang_tip"))
-        self._help_btn.setToolTip(loc("help_tip"))
+        is_tr = get_localization().current_language == "tr"
+        self._menu_btn.setText("⚙️  Menü" if is_tr else "⚙️  Menu")
+        self._menu_btn.setToolTip("Menü ve Ayarlar" if is_tr else "Menu & Settings")
 
     def set_file_info(self, name: str, index: int, total: int) -> None:
         """Update the file name and navigation counter."""
