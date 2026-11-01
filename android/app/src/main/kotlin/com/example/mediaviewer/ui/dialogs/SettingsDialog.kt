@@ -19,6 +19,9 @@ import androidx.compose.material.icons.automirrored.filled.OpenInNew
 import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.SystemUpdate
+import androidx.compose.material.icons.filled.Tune
+import com.example.mediaviewer.util.AppMode
+import com.example.mediaviewer.util.SettingsManager
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -94,12 +97,105 @@ fun SettingsDialog(
             }
         },
         text = {
+            val appMode = SettingsManager.appModeState.value
+
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
                     .verticalScroll(rememberScrollState())
             ) {
-                // --- SECTION 1: DİL SEÇİMİ (LANGUAGE) ---
+                // --- SECTION 1: ÇALIŞMA MODU (APP MODE) ---
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Tune,
+                        contentDescription = null,
+                        tint = AccentCyan,
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Text(
+                        text = stringResource(R.string.app_mode_title),
+                        color = AccentCyan,
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(6.dp))
+
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(containerColor = Color(0xFF1E2230)),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Column(modifier = Modifier.padding(vertical = 4.dp, horizontal = 8.dp)) {
+                        // Basit Mod
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable { SettingsManager.setAppMode(context, AppMode.SIMPLE) }
+                                .padding(vertical = 6.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            RadioButton(
+                                selected = appMode == AppMode.SIMPLE,
+                                onClick = { SettingsManager.setAppMode(context, AppMode.SIMPLE) },
+                                colors = RadioButtonDefaults.colors(selectedColor = AccentBlue)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Column {
+                                Text(
+                                    text = "👁️ " + stringResource(R.string.mode_simple),
+                                    color = TextPrimary,
+                                    fontSize = 14.sp,
+                                    fontWeight = if (appMode == AppMode.SIMPLE) FontWeight.Bold else FontWeight.Normal
+                                )
+                                Text(
+                                    text = stringResource(R.string.mode_simple_desc),
+                                    color = TextSecondary,
+                                    fontSize = 11.sp
+                                )
+                            }
+                        }
+
+                        HorizontalDivider(color = TextSecondary.copy(alpha = 0.15f), modifier = Modifier.padding(horizontal = 4.dp))
+
+                        // Gelişmiş Mod
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable { SettingsManager.setAppMode(context, AppMode.ADVANCED) }
+                                .padding(vertical = 6.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            RadioButton(
+                                selected = appMode == AppMode.ADVANCED,
+                                onClick = { SettingsManager.setAppMode(context, AppMode.ADVANCED) },
+                                colors = RadioButtonDefaults.colors(selectedColor = AccentBlue)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Column {
+                                Text(
+                                    text = "🛠️ " + stringResource(R.string.mode_advanced),
+                                    color = TextPrimary,
+                                    fontSize = 14.sp,
+                                    fontWeight = if (appMode == AppMode.ADVANCED) FontWeight.Bold else FontWeight.Normal
+                                )
+                                Text(
+                                    text = stringResource(R.string.mode_advanced_desc),
+                                    color = TextSecondary,
+                                    fontSize = 11.sp
+                                )
+                            }
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(14.dp))
+
+                // --- SECTION 2: DİL SEÇİMİ (LANGUAGE) ---
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(6.dp)

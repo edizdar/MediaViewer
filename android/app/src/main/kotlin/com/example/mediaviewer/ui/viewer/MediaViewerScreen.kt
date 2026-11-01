@@ -87,7 +87,9 @@ import com.example.mediaviewer.ui.viewer.components.PlaylistFilmstrip
 import com.example.mediaviewer.ui.viewer.components.SmartUpscaleDialog
 import com.example.mediaviewer.ui.viewer.components.VideoPlayerView
 import com.example.mediaviewer.ui.viewer.components.VideoTrimSheet
+import com.example.mediaviewer.util.AppMode
 import com.example.mediaviewer.util.ImageEditor
+import com.example.mediaviewer.util.SettingsManager
 import kotlinx.coroutines.launch
 
 @Composable
@@ -109,6 +111,8 @@ fun MediaViewerScreen(
         initialPage = initialIndex.coerceIn(0, items.size - 1),
         pageCount = { items.size }
     )
+
+    val isAdvancedMode = SettingsManager.appModeState.value == AppMode.ADVANCED
 
     var controlsVisible by remember { mutableStateOf(true) }
     var isCurrentZoomed by remember { mutableStateOf(false) }
@@ -171,10 +175,10 @@ fun MediaViewerScreen(
                         isCurrentPage = isCurrent,
                         controlsVisible = controlsVisible,
                         onToggleControls = { controlsVisible = !controlsVisible },
-                        onTrimClicked = { dur ->
+                        onTrimClicked = if (isAdvancedMode) { dur ->
                             trimTotalDurationMs = dur
                             showTrimSheet = true
-                        }
+                        } else null
                     )
                 }
                 MediaType.AUDIO -> {
@@ -300,9 +304,11 @@ fun MediaViewerScreen(
             }
         }
 
+        val showBottomContainer = showPlaylistFilmstrip || (currentItem.mediaType == MediaType.IMAGE && isAdvancedMode)
+
         // Bottom Controls Container (Playlist Filmstrip & Image Tools Toolbar)
         AnimatedVisibility(
-            visible = controlsVisible,
+            visible = controlsVisible && showBottomContainer,
             enter = fadeIn(),
             exit = fadeOut(),
             modifier = Modifier.align(Alignment.BottomCenter)
@@ -330,8 +336,8 @@ fun MediaViewerScreen(
                         )
                     }
 
-                    // Desktop-matching Image Toolbar (Rotate, Crop, Color Adjust, Upscale)
-                    if (currentItem.mediaType == MediaType.IMAGE) {
+                    // Desktop-matching Image Toolbar (Rotate, Crop, Color Adjust, Upscale) - only in Advanced Mode
+                    if (currentItem.mediaType == MediaType.IMAGE && isAdvancedMode) {
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()

@@ -78,4 +78,9 @@
     <string name="website">Web</string>
     <string name="website_url">https://www.eroldizdar.tr</string>
     <string name="version_label">Sürüm %s</string>
+    <string name="app_mode_title">Çalışma Modu</string>
+    <string name="mode_simple">Basit Mod (Sadece Görüntüleme)</string>
+    <string name="mode_simple_desc">Düzenleme butonları gizlenir, sade ve akıcı görüntüleme sağlar.</string>
+    <string name="mode_advanced">Gelişmiş Mod (Düzenleme Aktif)</string>
+    <string name="mode_advanced_desc">Kırpma, döndürme, renk ayarı, HD büyütme ve video kesme açık.</string>
 </resources>

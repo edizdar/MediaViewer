@@ -99,6 +99,11 @@ STRINGS = {
         "update_dialog_later": "Daha Sonra",
         "update_dialog_dl_btn": "📥  Yeni Sürümü İndir",
         "update_dialog_no_notes": "<i>Bu sürüm için detaylı not belirtilmemiş.</i>",
+        "mode_btn_simple": "👁️ Basit",
+        "mode_btn_edit": "🛠️ Gelişmiş",
+        "mode_tip": "Çalışma Modunu Değiştir (Basit Görüntüleme / Gelişmiş Düzenleme)",
+        "toast_mode_simple": "Basit Görüntüleme Modu aktif (Düzenleme araçları gizlendi)",
+        "toast_mode_advanced": "Gelişmiş Düzenleme Modu aktif (Tüm araçlar açık)",
     },
     "en": {
         "open_file_btn": "📁  Open File",
@@ -166,6 +171,11 @@ STRINGS = {
         "update_dialog_later": "Later",
         "update_dialog_dl_btn": "📥  Download New Version",
         "update_dialog_no_notes": "<i>No detailed release notes provided for this version.</i>",
+        "mode_btn_simple": "👁️ Simple",
+        "mode_btn_edit": "🛠️ Advanced",
+        "mode_tip": "Toggle Display Mode (Simple Viewer / Advanced Editor)",
+        "toast_mode_simple": "Simple Viewing Mode active (Editing tools hidden)",
+        "toast_mode_advanced": "Advanced Editing Mode active (All tools visible)",
     }
 }
 

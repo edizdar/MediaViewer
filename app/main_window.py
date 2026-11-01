@@ -3,7 +3,7 @@
 from pathlib import Path
 from typing import Optional
 
-from PySide6.QtCore import Qt, QTimer, QEvent
+from PySide6.QtCore import Qt, QTimer, QEvent, QSettings
 from PySide6.QtGui import QKeySequence, QShortcut, QDragEnterEvent, QDropEvent, QCursor, QImage
 from PySide6.QtWidgets import (
     QMainWindow,
@@ -171,6 +171,11 @@ class MainWindow(QMainWindow):
         self._connect_signals()
         self._setup_shortcuts()
 
+        # Display & Editing mode (Simple vs Advanced)
+        self._settings = QSettings("MediaViewer", "MediaViewer")
+        saved_mode = self._settings.value("app_mode", "advanced")
+        self.set_mode(saved_mode)
+
         # Install application-level event filter for guaranteed key routing
         QApplication.instance().installEventFilter(self)
 
@@ -205,6 +210,7 @@ class MainWindow(QMainWindow):
         self._top_toolbar.playlist_toggled.connect(self._toggle_playlist)
         self._top_toolbar.help_clicked.connect(self._show_help_dialog)
         self._top_toolbar.language_clicked.connect(self._toggle_language)
+        self._top_toolbar.mode_toggled.connect(self._toggle_mode)
 
         # Bottom toolbar
         self._bottom_toolbar.zoom_in_clicked.connect(self._image_viewer.zoom_in)
@@ -1180,6 +1186,27 @@ class MainWindow(QMainWindow):
                     self.open_file(file_path)
                     return
         event.ignore()
+
+    def _toggle_mode(self) -> None:
+        """Toggle between Simple (viewing only) and Advanced (editing tools) mode."""
+        current = getattr(self, "_current_mode", "advanced")
+        new_mode = "simple" if current == "advanced" else "advanced"
+        self.set_mode(new_mode)
+        if hasattr(self, "_settings"):
+            self._settings.setValue("app_mode", new_mode)
+        msg = loc("toast_mode_simple") if new_mode == "simple" else loc("toast_mode_advanced")
+        self._show_toast(msg)
+
+    def set_mode(self, mode: str) -> None:
+        """Apply simple or advanced mode to toolbars and panels."""
+        self._current_mode = mode
+        if hasattr(self, "_top_toolbar"):
+            self._top_toolbar.set_mode(mode)
+        is_advanced = mode == "advanced"
+        if hasattr(self, "_bottom_toolbar"):
+            self._bottom_toolbar.set_editing_visible(is_advanced)
+        if not is_advanced and hasattr(self, "_adjustments_panel"):
+            self._adjustments_panel.setVisible(False)
 
     def closeEvent(self, event) -> None:
         """Safely terminate any background FFmpeg workers on exit."""

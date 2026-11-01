@@ -89,6 +89,7 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         LanguageManager.init(this)
         LanguageManager.applyLocale(this, LanguageManager.getSavedLanguage(this))
+        com.example.mediaviewer.util.SettingsManager.init(this)
 
         enableEdgeToEdge(
             statusBarStyle = SystemBarStyle.dark(android.graphics.Color.TRANSPARENT),

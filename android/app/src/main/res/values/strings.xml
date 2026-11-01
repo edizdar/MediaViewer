@@ -78,4 +78,9 @@
     <string name="website">Web</string>
     <string name="website_url">https://www.eroldizdar.tr</string>
     <string name="version_label">Version %s</string>
+    <string name="app_mode_title">Display &amp; Editing Mode</string>
+    <string name="mode_simple">Simple Mode (Viewer Only)</string>
+    <string name="mode_simple_desc">Editing tools are hidden for a clean, distraction-free view.</string>
+    <string name="mode_advanced">Advanced Mode (Editing Enabled)</string>
+    <string name="mode_advanced_desc">Crop, rotate, color adjustments, HD upscale &amp; video trim active.</string>
 </resources>

@@ -42,11 +42,13 @@ class TopToolbar(QWidget):
     playlist_toggled = Signal()
     help_clicked = Signal()
     language_clicked = Signal()
+    mode_toggled = Signal()
 
     def __init__(self, parent=None) -> None:
         super().__init__(parent)
         self.setObjectName("topToolbar")
         self.setFixedHeight(44)
+        self._mode = "advanced"
 
         layout = QHBoxLayout(self)
         layout.setContentsMargins(8, 0, 8, 0)
@@ -107,6 +109,16 @@ class TopToolbar(QWidget):
 
         layout.addWidget(_separator())
 
+        # Mode button (Basit Görüntüleme / Gelişmiş Düzenleme)
+        self._mode_btn = _icon_button(self._get_mode_btn_text(), loc("mode_tip"))
+        self._mode_btn.setStyleSheet(
+            "QPushButton { font-weight: bold; font-size: 12px; min-width: 65px; padding: 2px 8px; }"
+        )
+        self._mode_btn.clicked.connect(self.mode_toggled)
+        layout.addWidget(self._mode_btn)
+
+        layout.addWidget(_separator())
+
         # Language toggle button
         self._lang_btn = _icon_button(self._get_lang_btn_text(), loc("lang_tip"))
         self._lang_btn.setStyleSheet(
@@ -121,6 +133,15 @@ class TopToolbar(QWidget):
         self._help_btn = _icon_button("❓", loc("help_tip"))
         self._help_btn.clicked.connect(self.help_clicked)
         layout.addWidget(self._help_btn)
+
+    def _get_mode_btn_text(self) -> str:
+        if self._mode == "simple":
+            return loc("mode_btn_simple")
+        return loc("mode_btn_edit")
+
+    def set_mode(self, mode: str) -> None:
+        self._mode = mode
+        self._mode_btn.setText(self._get_mode_btn_text())
 
     def _get_lang_btn_text(self) -> str:
         loc_mgr = get_localization()
@@ -137,6 +158,8 @@ class TopToolbar(QWidget):
         self._prev_btn.setToolTip(loc("prev_tip"))
         self._next_btn.setToolTip(loc("next_tip"))
         self._fullscreen_btn.setToolTip(loc("fullscreen_tip"))
+        self._mode_btn.setText(self._get_mode_btn_text())
+        self._mode_btn.setToolTip(loc("mode_tip"))
         self._lang_btn.setText(self._get_lang_btn_text())
         self._lang_btn.setToolTip(loc("lang_tip"))
         self._help_btn.setToolTip(loc("help_tip"))
@@ -209,7 +232,8 @@ class BottomToolbar(QWidget):
         self._original_btn.clicked.connect(self.original_clicked)
         img_layout.addWidget(self._original_btn)
 
-        img_layout.addWidget(_separator())
+        self._rotate_sep = _separator()
+        img_layout.addWidget(self._rotate_sep)
 
         # Rotate
         self._rotate_ccw_btn = _icon_button("↺", loc("rotate_ccw_tip"))
@@ -220,7 +244,8 @@ class BottomToolbar(QWidget):
         self._rotate_cw_btn.clicked.connect(self.rotate_cw_clicked)
         img_layout.addWidget(self._rotate_cw_btn)
 
-        img_layout.addWidget(_separator())
+        self._crop_sep = _separator()
+        img_layout.addWidget(self._crop_sep)
 
         # Crop button
         self._crop_btn = _icon_button("✂", loc("crop_tip"))
@@ -252,12 +277,24 @@ class BottomToolbar(QWidget):
         self._delete_btn.clicked.connect(self.delete_clicked)
         layout.addWidget(self._delete_btn)
 
-        layout.addWidget(_separator())
+        self._adj_sep = _separator()
+        layout.addWidget(self._adj_sep)
 
         # Color adjustments toggle button
         self._adj_btn = _icon_button("🎨", loc("adj_tip"))
         self._adj_btn.clicked.connect(self.adjustments_toggled)
         layout.addWidget(self._adj_btn)
+
+    def set_editing_visible(self, visible: bool) -> None:
+        """Show or hide editing controls based on simple/advanced mode."""
+        self._rotate_sep.setVisible(visible)
+        self._rotate_ccw_btn.setVisible(visible)
+        self._rotate_cw_btn.setVisible(visible)
+        self._crop_sep.setVisible(visible)
+        self._crop_btn.setVisible(visible)
+        self._upscale_btn.setVisible(visible)
+        self._adj_sep.setVisible(visible)
+        self._adj_btn.setVisible(visible)
 
     def retranslate_ui(self) -> None:
         """Update tooltips when language changes."""
