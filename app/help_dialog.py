@@ -453,6 +453,7 @@ class HelpDialog(QDialog):
         </div>
         <p>
             Developer: <b>Erol Dizdar</b><br>
+            Web: <a class="link" href="https://www.eroldizdar.tr">https://www.eroldizdar.tr</a><br>
             Repository: <a class="link" href="https://github.com/edizdar/MediaViewer">github.com/edizdar/MediaViewer</a>
         </p>
         <div class="footer">

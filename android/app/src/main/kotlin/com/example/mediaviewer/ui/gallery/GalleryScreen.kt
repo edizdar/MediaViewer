@@ -38,8 +38,9 @@ import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Security
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Videocam
-import com.example.mediaviewer.ui.dialogs.LanguageSelectionDialog
+import com.example.mediaviewer.ui.dialogs.SettingsDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -145,7 +146,7 @@ fun GalleryScreen(
         viewModel.updatePermissionStatus(hasPerms, context)
     }
 
-    var showLanguageDialog by remember { mutableStateOf(false) }
+    var showSettingsDialog by remember { mutableStateOf(false) }
     var updateInfo by remember { mutableStateOf<AppUpdateInfo?>(null) }
     var showUpdateBanner by remember { mutableStateOf(false) }
     val coroutineScope = rememberCoroutineScope()
@@ -201,10 +202,10 @@ fun GalleryScreen(
                     }
                 },
                 actions = {
-                    IconButton(onClick = { showLanguageDialog = true }) {
+                    IconButton(onClick = { showSettingsDialog = true }) {
                         Icon(
-                            imageVector = Icons.Default.Language,
-                            contentDescription = stringResource(R.string.language),
+                            imageVector = Icons.Default.Settings,
+                            contentDescription = stringResource(R.string.settings),
                             tint = TextSecondary
                         )
                     }
@@ -348,11 +349,11 @@ fun GalleryScreen(
             }
         }
 
-        if (showLanguageDialog) {
-            LanguageSelectionDialog(
-                onDismiss = { showLanguageDialog = false },
+        if (showSettingsDialog) {
+            SettingsDialog(
+                onDismiss = { showSettingsDialog = false },
                 onLanguageSelected = {
-                    showLanguageDialog = false
+                    showSettingsDialog = false
                     viewModel.loadMedia(context)
                 },
                 onCheckUpdates = {

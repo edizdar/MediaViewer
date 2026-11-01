@@ -70,4 +70,12 @@
     <string name="checking_updates">Güncellemeler denetleniyor...</string>
     <string name="already_latest_version">Zaten en güncel sürümü kullanıyorsunuz.</string>
     <string name="update_check_failed">Güncelleme sunucusuna bağlanılamadı.</string>
+    <string name="settings">Ayarlar</string>
+    <string name="settings_title">Ayarlar</string>
+    <string name="about_and_developer">Hakkında &amp; Geliştirici</string>
+    <string name="developer">Geliştirici</string>
+    <string name="developer_name">Erol Dizdar</string>
+    <string name="website">Web</string>
+    <string name="website_url">https://www.eroldizdar.tr</string>
+    <string name="version_label">Sürüm %s</string>
 </resources>
