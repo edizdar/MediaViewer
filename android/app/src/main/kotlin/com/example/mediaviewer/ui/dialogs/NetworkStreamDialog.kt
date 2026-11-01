@@ -1,5 +1,6 @@
 package com.example.mediaviewer.ui.dialogs
 
+import android.widget.Toast
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -23,6 +24,7 @@ import androidx.compose.material.icons.filled.Sensors
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Checkbox
@@ -341,29 +343,47 @@ fun NetworkStreamDialog(
         },
         confirmButton = {
             if (selectedTabIndex == 0) {
-                Button(
-                    onClick = {
-                        val cleanUrl = urlText.trim()
-                        if (cleanUrl.isNotBlank()) {
-                            StreamManager.setBufferMode(context, bufferMode)
-                            if (saveStreamChecked) {
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedButton(
+                        onClick = {
+                            val cleanUrl = urlText.trim()
+                            if (cleanUrl.isNotBlank()) {
                                 StreamManager.saveStream(context, nameText, cleanUrl, bufferMode = bufferMode)
+                                savedStreams = StreamManager.getSavedStreams(context)
+                                Toast.makeText(context, "Akış listeye kaydedildi", Toast.LENGTH_SHORT).show()
+                                selectedTabIndex = 1
                             }
-                            val streamItem = SavedStream(
-                                id = System.currentTimeMillis().toString(),
-                                name = nameText.ifBlank { StreamManager.inferStreamName(cleanUrl) },
-                                url = cleanUrl,
-                                bufferMode = bufferMode
-                            ).toMediaItem()
-                            onDismiss()
-                            onPlayStream(streamItem)
-                        }
-                    },
-                    enabled = urlText.isNotBlank(),
-                    colors = ButtonDefaults.buttonColors(containerColor = AccentBlue),
-                    shape = RoundedCornerShape(10.dp)
-                ) {
-                    Text("▶️ Akışı Oynat", fontWeight = FontWeight.Bold)
+                        },
+                        enabled = urlText.isNotBlank(),
+                        shape = RoundedCornerShape(10.dp)
+                    ) {
+                        Text("💾 Kaydet")
+                    }
+
+                    Button(
+                        onClick = {
+                            val cleanUrl = urlText.trim()
+                            if (cleanUrl.isNotBlank()) {
+                                StreamManager.setBufferMode(context, bufferMode)
+                                if (saveStreamChecked) {
+                                    StreamManager.saveStream(context, nameText, cleanUrl, bufferMode = bufferMode)
+                                }
+                                val streamItem = SavedStream(
+                                    id = System.currentTimeMillis().toString(),
+                                    name = nameText.ifBlank { StreamManager.inferStreamName(cleanUrl) },
+                                    url = cleanUrl,
+                                    bufferMode = bufferMode
+                                ).toMediaItem()
+                                onDismiss()
+                                onPlayStream(streamItem)
+                            }
+                        },
+                        enabled = urlText.isNotBlank(),
+                        colors = ButtonDefaults.buttonColors(containerColor = AccentBlue),
+                        shape = RoundedCornerShape(10.dp)
+                    ) {
+                        Text("▶️ Oynat", fontWeight = FontWeight.Bold)
+                    }
                 }
             }
         },

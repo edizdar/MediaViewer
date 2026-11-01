@@ -22,7 +22,9 @@ from PySide6.QtWidgets import (
 from app.file_manager import FileManager
 
 # ── Playlist file format ────────────────────────────────────────────────
-PLAYLIST_FILTER = "Oynatma Listesi (*.mvpl);;JSON Dosyaları (*.json);;Tüm Dosyalar (*)"
+PLAYLIST_FILTER = (
+    "M3U Çalma Listesi (*.m3u8 *.m3u);;MediaViewer Listesi (*.mvpl);;Tüm Dosyalar (*)"
+)
 
 
 class PlaylistManager:
@@ -178,15 +180,29 @@ class PlaylistManager:
     # ── Persistence ─────────────────────────────────────────────────────
 
     def save(self, path: Path) -> None:
-        data = {
-            "name": self._name,
-            "files": [str(f) for f in self._files],
-            "titles": self._titles,
-        }
         path = Path(path)
-        if not path.suffix:
-            path = path.with_suffix(".mvpl")
-        path.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
+        if path.suffix.lower() in (".m3u", ".m3u8"):
+            lines = ["#EXTM3U"]
+            for f in self._files:
+                f_str = str(f)
+                title = self._titles.get(
+                    f_str,
+                    Path(f_str).stem
+                    if not f_str.startswith(("http://", "https://", "rtsp://", "rtmp://"))
+                    else f_str.split("/")[-1].split("?")[0] or "Kanal",
+                )
+                lines.append(f"#EXTINF:-1,{title}")
+                lines.append(f_str)
+            path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+        else:
+            data = {
+                "name": self._name,
+                "files": [str(f) for f in self._files],
+                "titles": self._titles,
+            }
+            if not path.suffix:
+                path = path.with_suffix(".mvpl")
+            path.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
         self._save_path = path
         self._modified = False
 
@@ -482,7 +498,7 @@ class PlaylistPanel(QWidget):
         path, _ = QFileDialog.getSaveFileName(
             self,
             "Oynatma Listesini Kaydet",
-            self._manager.name + ".mvpl",
+            str(Path.home() / "Desktop" / f"{self._manager.name}.m3u8"),
             PLAYLIST_FILTER,
         )
         if path:

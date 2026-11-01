@@ -205,6 +205,8 @@ class MainWindow(QMainWindow):
         # Top toolbar
         self._top_toolbar.open_file_clicked.connect(self.open_file_dialog)
         self._top_toolbar.open_stream_clicked.connect(self.open_network_stream_dialog)
+        self._top_toolbar.record_stream_clicked.connect(self._video_player.toggle_stream_recording)
+        self._top_toolbar.save_bookmark_clicked.connect(self.save_current_stream_to_bookmarks)
         self._top_toolbar.previous_clicked.connect(self._on_nav_prev)
         self._top_toolbar.next_clicked.connect(self._on_nav_next)
         self._top_toolbar.fullscreen_clicked.connect(self._toggle_fullscreen)
@@ -277,6 +279,7 @@ class MainWindow(QMainWindow):
             "Ctrl+J": self._toggle_adjustments,
             "Ctrl+L": self._toggle_playlist,
             "Ctrl+Shift+U": self._show_upscale_dialog,
+            "Ctrl+R": self._video_player.toggle_stream_recording,
             "F1": self._show_help_dialog,
             "Alt+M": self._top_toolbar._show_main_menu,
             "F10": self._top_toolbar._show_main_menu,
@@ -514,13 +517,42 @@ class MainWindow(QMainWindow):
         self._video_player.cleanup()
 
         self._stack.setCurrentIndex(2)
+        display_name = name or url.split("/")[-1].split("?")[0] or "Canlı Ağ Akışı"
+        self._video_player.set_stream_name(display_name)
         self._video_player.load_video(url)
         self._video_player.play()
 
-        display_name = name or url.split("/")[-1].split("?")[0] or "Canlı Ağ Akışı"
         mode_str = "⚡ Düşük Gecikme" if buffer_mode == "low_latency" else "⚖️ Dengeli"
         self._top_toolbar.set_file_info(f"📺 [{mode_str}] {display_name}", 1, 1)
         self.setWindowTitle(f"MediaViewer - {display_name}")
+
+    def save_current_stream_to_bookmarks(self) -> None:
+        """Save the currently playing stream to saved streams list."""
+        url = getattr(self._video_player, "_stream_raw_url", "")
+        if not url:
+            QMessageBox.information(self, "Bilgi", "Şu anda oynatılan bir canlı ağ akışı yok.")
+            return
+
+        from PySide6.QtWidgets import QInputDialog
+        cur_name = getattr(self._video_player, "_stream_display_name", "") or url.split("/")[-1].split("?")[0]
+        name, ok = QInputDialog.getText(
+            self,
+            "Akışı Kayıtlılara Ekle",
+            "Kanal / Akış Adı:",
+            QLineEdit.EchoMode.Normal,
+            cur_name
+        )
+        if ok and name.strip():
+            from app.network_stream_dialog import NetworkStreamDialog
+            dlg = NetworkStreamDialog(self)
+            dlg._saved_streams = [s for s in dlg._saved_streams if s.get("url") != url]
+            dlg._saved_streams.insert(0, {
+                "name": name.strip(),
+                "url": url,
+                "buffer_mode": "low_latency" if url.lower().startswith("rtsp://") else "balanced"
+            })
+            dlg._save_streams_to_disk()
+            QMessageBox.information(self, "Başarılı", f"'{name.strip()}' kayıtlı akışlar listesine eklendi.")
 
     def _load_m3u_playlist(self, path: Path) -> None:
         """Parse an M3U or M3U8 playlist file, populate playlist panel, and play first item."""
@@ -575,7 +607,10 @@ class MainWindow(QMainWindow):
         """Open and display the given file or URL."""
         path_str = str(path).strip()
         if path_str.startswith(("http://", "https://", "rtsp://", "rtmp://")):
-            self.open_stream(path_str)
+            title = ""
+            if hasattr(self, "_playlist_panel") and self._playlist_panel.is_active:
+                title = self._playlist_panel.manager._titles.get(path_str, "")
+            self.open_stream(path_str, name=title)
             return
 
         path = Path(path).resolve()

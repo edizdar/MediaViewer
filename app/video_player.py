@@ -1,5 +1,6 @@
 """Video player widget with zoom, keyboard pan, and playback controls."""
 
+from datetime import datetime
 from pathlib import Path
 from typing import Optional
 
@@ -26,6 +27,7 @@ from PySide6.QtWidgets import (
 
 from app.video_trim import TrimSlider, VideoTrimPanel
 from app.image_crop import CropOverlayItem
+from app.stream_recorder import StreamRecorder
 
 
 class VideoAdjustmentOverlay(QGraphicsItem):
@@ -658,6 +660,10 @@ class VideoPlayer(QWidget):
 
         self._is_seeking = False
         self._playback_rate: float = 1.0
+        self._is_network_stream: bool = False
+        self._stream_raw_url: str = ""
+        self._stream_display_name: str = ""
+        self._stream_recorder = StreamRecorder(self)
 
         self._setup_ui()
         self._connect_signals()
@@ -745,6 +751,17 @@ class VideoPlayer(QWidget):
         bottom_row.addWidget(self._time_label)
 
         bottom_row.addStretch()
+
+        # Stream Record button (visible only for live network streams)
+        self._record_btn = QPushButton("🔴 Yayını Kaydet")
+        self._record_btn.setObjectName("speedBtn")
+        self._record_btn.setToolTip("Canlı Ağ Akışını (RTSP / M3U / HLS) Video Olarak Kaydet (Ctrl+R)")
+        self._record_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        self._record_btn.setFixedHeight(30)
+        self._record_btn.setStyleSheet("QPushButton { font-weight: bold; color: #f38ba8; }")
+        self._record_btn.clicked.connect(self.toggle_stream_recording)
+        self._record_btn.setVisible(False)
+        bottom_row.addWidget(self._record_btn)
 
         # Trim button
         self._trim_btn = QPushButton("✂ Kırp")
@@ -834,6 +851,12 @@ class VideoPlayer(QWidget):
         # Video view signals
         self._video_view.crop_rect_changed.connect(self._on_video_crop_rect_changed)
         self._video_view.native_size_ready.connect(self._on_native_size_ready)
+
+        # Stream recorder signals
+        self._stream_recorder.recording_started.connect(self._on_recording_started)
+        self._stream_recorder.recording_tick.connect(self._on_recording_tick)
+        self._stream_recorder.recording_finished.connect(self._on_recording_finished)
+        self._stream_recorder.recording_error.connect(self._on_recording_error)
 
         self._player.errorOccurred.connect(self._on_player_error)
         self._player.mediaStatusChanged.connect(self._on_media_status_changed)
@@ -1190,16 +1213,32 @@ class VideoPlayer(QWidget):
 
     # ── Playback API ────────────────────────────────────────────────────
 
+    def set_stream_name(self, name: str) -> None:
+        """Set friendly display name for current network stream."""
+        self._stream_display_name = name
+
     def load_video(self, path: str | Path) -> None:
+        if hasattr(self, "_stream_recorder") and self._stream_recorder.is_recording:
+            self._stream_recorder.stop_recording()
+
         path_str = str(path).strip()
         is_stream = path_str.startswith(("http://", "https://", "rtsp://", "rtmp://"))
+
+        self._is_network_stream = is_stream
+        self._stream_raw_url = path_str if is_stream else ""
 
         if is_stream:
             self._current_path = Path(path_str.split("?")[0])
             url = QUrl(path_str)
+            self._record_btn.setVisible(True)
+            self._record_btn.setText("🔴 Yayını Kaydet")
+            self._record_btn.setStyleSheet("QPushButton { font-weight: bold; color: #f38ba8; }")
+            self._trim_btn.setVisible(False)
         else:
             self._current_path = Path(path).resolve()
             url = QUrl.fromLocalFile(str(self._current_path))
+            self._record_btn.setVisible(False)
+            self._trim_btn.setVisible(True)
 
         self._has_video_frame = False
         self._luminance_analyzed = False
@@ -1256,6 +1295,11 @@ class VideoPlayer(QWidget):
         self._video_view.apply_adjustments(brightness, contrast, gamma)
 
     def cleanup(self) -> None:
+        if hasattr(self, "_stream_recorder") and self._stream_recorder.is_recording:
+            self._stream_recorder.stop_recording()
+        self._is_network_stream = False
+        self._stream_raw_url = ""
+        self._record_btn.setVisible(False)
         self._codec_check_timer.stop()
         self._has_video_frame = False
         self._luminance_analyzed = False
@@ -1270,6 +1314,74 @@ class VideoPlayer(QWidget):
         self.apply_adjustments(0, 0, 1.0)
         if self._smart_enhance_active:
             self._video_view.set_smart_enhance(True)
+
+    def toggle_stream_recording(self) -> None:
+        """Toggle recording of the currently playing live network stream."""
+        if not self._is_network_stream or not self._stream_raw_url:
+            QMessageBox.information(
+                self,
+                "Bilgi",
+                "Kayıt özelliği yalnızca canlı ağ akışları (RTSP, M3U, HLS) oynatılırken kullanılabilir."
+            )
+            return
+
+        if self._stream_recorder.is_recording:
+            self._record_btn.setText("⏳ Kayıt Tamamlanıyor...")
+            self._stream_recorder.stop_recording()
+        else:
+            default_dir = Path.home() / "Videos" / "MediaViewer_Kayitlar"
+            default_dir.mkdir(parents=True, exist_ok=True)
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            stream_name = self._stream_display_name or "Yayin"
+            safe_name = "".join(c for c in stream_name if c.isalnum() or c in (" ", "_", "-")).strip() or "Yayin"
+            default_file = default_dir / f"{safe_name}_{timestamp}.mp4"
+
+            file_path, _ = QFileDialog.getSaveFileName(
+                self,
+                "Canlı Ağ Yayınını Kaydet (MP4 / TS / MKV)",
+                str(default_file),
+                "MP4 Videosu (*.mp4);;MPEG-TS Yayını (*.ts);;MKV Videosu (*.mkv)",
+            )
+            if file_path:
+                self._stream_recorder.start_recording(self._stream_raw_url, file_path)
+
+    def _on_recording_started(self, output_path: str) -> None:
+        self._record_btn.setText("⏹️ Kaydı Durdur (00:00) 🔴")
+        self._record_btn.setStyleSheet(
+            "background-color: #f38ba8; color: #11111b; font-weight: bold; padding: 2px 8px; border-radius: 4px;"
+        )
+
+    def _on_recording_tick(self, elapsed: int, bytes_written: int) -> None:
+        min_sec = f"{elapsed // 60:02d}:{elapsed % 60:02d}"
+        self._record_btn.setText(f"⏹️ Kaydı Durdur ({min_sec}) 🔴")
+
+    def _on_recording_finished(self, output_path: str, elapsed: int, final_size: int) -> None:
+        self._record_btn.setText("🔴 Yayını Kaydet")
+        self._record_btn.setStyleSheet("QPushButton { font-weight: bold; color: #f38ba8; }")
+        size_mb = final_size / (1024 * 1024)
+        duration_str = f"{elapsed // 60:02d}:{elapsed % 60:02d}"
+        msg = QMessageBox(self)
+        msg.setWindowTitle("Canlı Yayın Kaydedildi")
+        msg.setText(
+            f"Canlı yayın başarıyla kaydedildi:\n\n{output_path}\n\nSüre: {duration_str}  |  Boyut: {size_mb:.2f} MB"
+        )
+        play_btn = msg.addButton("▶ Şimdi Oynat", QMessageBox.ButtonRole.ActionRole)
+        folder_btn = msg.addButton("📂 Klasörü Aç", QMessageBox.ButtonRole.ActionRole)
+        msg.addButton("Kapat", QMessageBox.ButtonRole.RejectRole)
+        msg.exec()
+        if msg.clickedButton() == play_btn:
+            self.load_video(output_path)
+        elif msg.clickedButton() == folder_btn:
+            import os
+            try:
+                os.startfile(Path(output_path).parent)
+            except Exception:
+                pass
+
+    def _on_recording_error(self, err_msg: str) -> None:
+        self._record_btn.setText("🔴 Yayını Kaydet")
+        self._record_btn.setStyleSheet("QPushButton { font-weight: bold; color: #f38ba8; }")
+        QMessageBox.warning(self, "Kayıt Hatası", err_msg)
 
     def skip_forward(self, ms: int = 5000) -> None:
         new_pos = min(self._player.position() + ms, self._player.duration())

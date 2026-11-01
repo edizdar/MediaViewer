@@ -108,6 +108,12 @@ class NetworkStreamDialog(QDialog):
 
         # Dialog Buttons
         btn_layout = QHBoxLayout()
+
+        self._save_only_btn = QPushButton("💾 Listeye Kaydet")
+        self._save_only_btn.setToolTip("Bu akışı listeye ekle/güncelle (oynatmadan kaydet)")
+        self._save_only_btn.clicked.connect(self._on_save_only_clicked)
+        btn_layout.addWidget(self._save_only_btn)
+
         btn_layout.addStretch()
 
         self._cancel_btn = QPushButton("İptal")
@@ -181,6 +187,11 @@ class NetworkStreamDialog(QDialog):
         self._del_stream_btn = QPushButton("🗑️ Seçileni Sil")
         self._del_stream_btn.clicked.connect(self._on_delete_saved_stream)
         actions_layout.addWidget(self._del_stream_btn)
+
+        self._edit_stream_btn = QPushButton("✏️ Düzenle")
+        self._edit_stream_btn.clicked.connect(self._on_edit_saved_stream)
+        actions_layout.addWidget(self._edit_stream_btn)
+
         actions_layout.addStretch()
         layout.addLayout(actions_layout)
 
@@ -253,6 +264,44 @@ class NetworkStreamDialog(QDialog):
                 data.get("buffer_mode", "balanced")
             )
             self.accept()
+
+    def _on_save_only_clicked(self) -> None:
+        url = self._url_input.text().strip()
+        if not url:
+            QMessageBox.warning(self, "Uyarı", "Lütfen geçerli bir akış adresi girin.")
+            return
+
+        name = self._name_input.text().strip()
+        if not name:
+            name = url.split("/")[-1].split("?")[0] or "Ağ Akışı"
+
+        buffer_mode = "low_latency" if self._radio_low_latency.isChecked() else "balanced"
+
+        self._saved_streams = [s for s in self._saved_streams if s.get("url") != url]
+        self._saved_streams.insert(0, {
+            "name": name,
+            "url": url,
+            "buffer_mode": buffer_mode,
+        })
+        self._save_streams_to_disk()
+        self._populate_saved_list()
+        self._tabs.setCurrentIndex(1)
+        QMessageBox.information(self, "Kaydedildi", f"'{name}' başarıyla kayıtlı akışlar listesine eklendi.")
+
+    def _on_edit_saved_stream(self) -> None:
+        cur_row = self._stream_list.currentRow()
+        if cur_row < 0 or cur_row >= len(self._saved_streams):
+            QMessageBox.warning(self, "Uyarı", "Lütfen düzenlemek için listeden bir akış seçin.")
+            return
+
+        item = self._saved_streams[cur_row]
+        self._url_input.setText(item.get("url", ""))
+        self._name_input.setText(item.get("name", ""))
+        if item.get("buffer_mode") == "low_latency":
+            self._radio_low_latency.setChecked(True)
+        else:
+            self._radio_balanced.setChecked(True)
+        self._tabs.setCurrentIndex(0)
 
     def _on_delete_saved_stream(self) -> None:
         cur_row = self._stream_list.currentRow()

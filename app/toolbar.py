@@ -37,6 +37,8 @@ class TopToolbar(QWidget):
 
     open_file_clicked = Signal()
     open_stream_clicked = Signal()
+    record_stream_clicked = Signal()
+    save_bookmark_clicked = Signal()
     previous_clicked = Signal()
     next_clicked = Signal()
     fullscreen_clicked = Signal()
@@ -150,6 +152,13 @@ class TopToolbar(QWidget):
         stream_act = menu.addAction("📺  " + ("Ağ Akışı Aç (RTSP / HLS / M3U)... (Ctrl+U)" if is_tr else "Open Network Stream (RTSP / HLS / M3U)... (Ctrl+U)"))
         stream_act.setShortcut("Ctrl+U")
         stream_act.triggered.connect(self.open_stream_clicked.emit)
+
+        record_act = menu.addAction("🔴  " + ("Canlı Yayını Kaydet / Durdur (Ctrl+R)" if is_tr else "Record / Stop Live Stream (Ctrl+R)"))
+        record_act.setShortcut("Ctrl+R")
+        record_act.triggered.connect(self.record_stream_clicked.emit)
+
+        bookmark_act = menu.addAction("⭐  " + ("Bu Akışı Kayıtlılara Ekle..." if is_tr else "Add Stream to Saved List..."))
+        bookmark_act.triggered.connect(self.save_bookmark_clicked.emit)
 
         playlist_act = menu.addAction("📋  " + ("Oynatma Listesi / Şerit (Ctrl+L)" if is_tr else "Playlist / Filmstrip (Ctrl+L)"))
         playlist_act.setShortcut("Ctrl+L")
