@@ -11,8 +11,8 @@ android {
     applicationId = "com.example.mediaviewer"
     minSdk = 24
     targetSdk = 36
-    versionCode = 5
-    versionName = "1.2.7"
+    versionCode = 6
+    versionName = "1.2.8"
   }
 
   buildTypes {

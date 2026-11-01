@@ -19,57 +19,106 @@ data class AppUpdateInfo(
 )
 
 object UpdateChecker {
+    private const val RAW_VERSION_URL = "https://raw.githubusercontent.com/edizdar/MediaViewer/main/version.json"
     private const val REPO_API = "https://api.github.com/repos/edizdar/MediaViewer/releases/latest"
     private const val FALLBACK_RELEASE_PAGE = "https://github.com/edizdar/MediaViewer/releases"
 
     suspend fun checkForUpdates(currentVersion: String): AppUpdateInfo? = withContext(Dispatchers.IO) {
+        // 1. First attempt: Direct Raw version.json (Zero API rate limiting, instant response)
         try {
-            val url = URL(REPO_API)
-            val conn = (url.openConnection() as HttpURLConnection).apply {
-                connectTimeout = 5000
-                readTimeout = 5000
-                setRequestProperty("User-Agent", "MediaViewer-Android-App")
-                setRequestProperty("Accept", "application/vnd.github.v3+json")
+            val rawInfo = checkFromRaw(currentVersion)
+            if (rawInfo != null) {
+                return@withContext rawInfo
             }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
 
-            if (conn.responseCode != 200) {
-                return@withContext null
+        // 2. Fallback: GitHub Official Releases API
+        try {
+            val apiInfo = checkFromApi(currentVersion)
+            if (apiInfo != null) {
+                return@withContext apiInfo
             }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
 
-            val jsonStr = conn.inputStream.bufferedReader().use { it.readText() }
-            val json = JSONObject(jsonStr)
+        null
+    }
 
-            val tagName = json.optString("tag_name", "")
-            val name = json.optString("name", tagName)
-            val body = json.optString("body", "")
-            val htmlUrl = json.optString("html_url", FALLBACK_RELEASE_PAGE)
+    private fun checkFromRaw(currentVersion: String): AppUpdateInfo? {
+        val url = URL(RAW_VERSION_URL)
+        val conn = (url.openConnection() as HttpURLConnection).apply {
+            connectTimeout = 6000
+            readTimeout = 6000
+            useCaches = false
+            setRequestProperty("User-Agent", "MediaViewer-Android-App")
+        }
+        if (conn.responseCode != 200) return null
 
-            var downloadUrl = htmlUrl
-            val assets = json.optJSONArray("assets")
-            if (assets != null) {
-                for (i in 0 until assets.length()) {
-                    val asset = assets.getJSONObject(i)
-                    val assetName = asset.optString("name", "")
-                    if (assetName.endsWith(".apk", ignoreCase = true)) {
-                        downloadUrl = asset.optString("browser_download_url", htmlUrl)
-                        break
-                    }
+        val jsonStr = conn.inputStream.bufferedReader().use { it.readText() }
+        val json = JSONObject(jsonStr)
+
+        val tagName = json.optString("tag_name", "v" + json.optString("version", ""))
+        val releaseName = json.optString("release_name", "Media Viewer $tagName")
+        val changelog = json.optString("changelog", "")
+        val downloadUrl = json.optString("download_apk_url", json.optString("release_page_url", FALLBACK_RELEASE_PAGE))
+        val isNewer = compareVersions(tagName, currentVersion) > 0
+
+        return AppUpdateInfo(
+            tagName = tagName,
+            releaseName = releaseName,
+            changelog = changelog,
+            downloadUrl = downloadUrl,
+            isNewer = isNewer,
+            currentVersion = currentVersion
+        )
+    }
+
+    private fun checkFromApi(currentVersion: String): AppUpdateInfo? {
+        val url = URL(REPO_API)
+        val conn = (url.openConnection() as HttpURLConnection).apply {
+            connectTimeout = 6000
+            readTimeout = 6000
+            useCaches = false
+            setRequestProperty("User-Agent", "MediaViewer-Android-App")
+            setRequestProperty("Accept", "application/vnd.github.v3+json")
+        }
+
+        if (conn.responseCode != 200) return null
+
+        val jsonStr = conn.inputStream.bufferedReader().use { it.readText() }
+        val json = JSONObject(jsonStr)
+
+        val tagName = json.optString("tag_name", "")
+        val name = json.optString("name", tagName)
+        val body = json.optString("body", "")
+        val htmlUrl = json.optString("html_url", FALLBACK_RELEASE_PAGE)
+
+        var downloadUrl = htmlUrl
+        val assets = json.optJSONArray("assets")
+        if (assets != null) {
+            for (i in 0 until assets.length()) {
+                val asset = assets.getJSONObject(i)
+                val assetName = asset.optString("name", "")
+                if (assetName.endsWith(".apk", ignoreCase = true)) {
+                    downloadUrl = asset.optString("browser_download_url", htmlUrl)
+                    break
                 }
             }
-
-            val isNewer = compareVersions(tagName, currentVersion) > 0
-
-            AppUpdateInfo(
-                tagName = tagName,
-                releaseName = name,
-                changelog = body,
-                downloadUrl = downloadUrl,
-                isNewer = isNewer,
-                currentVersion = currentVersion
-            )
-        } catch (_: Exception) {
-            null
         }
+
+        val isNewer = compareVersions(tagName, currentVersion) > 0
+
+        return AppUpdateInfo(
+            tagName = tagName,
+            releaseName = name,
+            changelog = body,
+            downloadUrl = downloadUrl,
+            isNewer = isNewer,
+            currentVersion = currentVersion
+        )
     }
 
     fun openDownloadUrl(context: Context, url: String) {

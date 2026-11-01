@@ -28,7 +28,7 @@ data class ViewerUiState(
 )
 
 class MediaViewModel(
-    private val repository: MediaRepository = MediaRepository()
+    val repository: MediaRepository = MediaRepository()
 ) : ViewModel() {
 
     private val _galleryState = MutableStateFlow(GalleryUiState())

@@ -428,95 +428,238 @@ class MediaRepository {
         }
     }
 
+    /**
+     * Resolves the canonical MediaStore content URI (with numeric _ID) for a given MediaItem,
+     * regardless of whether it came from a direct query, SAF Document URI, file:// URI, or file path.
+     */
+    fun findCanonicalMediaStoreUri(context: Context, item: MediaItem): Uri? {
+        val uri = item.uri
+
+        // 1. If it's already a MediaStore URI with a valid numeric ID at the end
+        if (uri.authority == MediaStore.AUTHORITY) {
+            try {
+                val id = ContentUris.parseId(uri)
+                if (id > 0) return uri
+            } catch (_: Exception) {}
+        }
+
+        // 2. If it's a MediaStore Documents URI (com.android.providers.media.documents)
+        // e.g. content://com.android.providers.media.documents/document/image%3A12345
+        if (DocumentsContract.isDocumentUri(context, uri) || uri.authority == "com.android.providers.media.documents") {
+            try {
+                val docId = DocumentsContract.getDocumentId(uri)
+                val parts = docId.split(":")
+                if (parts.size >= 2) {
+                    val type = parts[0].lowercase()
+                    val id = parts[1].toLongOrNull()
+                    if (id != null && id > 0) {
+                        val baseUri = when (type) {
+                            "image" -> MediaStore.Images.Media.EXTERNAL_CONTENT_URI
+                            "video" -> MediaStore.Video.Media.EXTERNAL_CONTENT_URI
+                            "audio" -> MediaStore.Audio.Media.EXTERNAL_CONTENT_URI
+                            else -> MediaStore.Files.getContentUri("external")
+                        }
+                        return ContentUris.withAppendedId(baseUri, id)
+                    }
+                }
+            } catch (_: Exception) {}
+        }
+
+        // 3. If item has a valid numeric MediaStore ID (< 1 trillion to exclude System.currentTimeMillis() fallback IDs)
+        if (item.id > 0 && item.id < 1_000_000_000_000L) {
+            val baseUri = when (item.mediaType) {
+                MediaType.IMAGE -> MediaStore.Images.Media.EXTERNAL_CONTENT_URI
+                MediaType.VIDEO -> MediaStore.Video.Media.EXTERNAL_CONTENT_URI
+                MediaType.AUDIO -> MediaStore.Audio.Media.EXTERNAL_CONTENT_URI
+            }
+            return ContentUris.withAppendedId(baseUri, item.id)
+        }
+
+        // 4. Query MediaStore by absolute file path
+        val path = item.path ?: if (uri.scheme == "file") uri.path else null
+        if (!path.isNullOrEmpty()) {
+            try {
+                val baseUri = when (item.mediaType) {
+                    MediaType.IMAGE -> MediaStore.Images.Media.EXTERNAL_CONTENT_URI
+                    MediaType.VIDEO -> MediaStore.Video.Media.EXTERNAL_CONTENT_URI
+                    MediaType.AUDIO -> MediaStore.Audio.Media.EXTERNAL_CONTENT_URI
+                }
+                context.contentResolver.query(
+                    baseUri,
+                    arrayOf(MediaStore.MediaColumns._ID),
+                    "${MediaStore.MediaColumns.DATA} = ?",
+                    arrayOf(path),
+                    null
+                )?.use { cursor ->
+                    if (cursor.moveToFirst()) {
+                        val id = cursor.getLong(cursor.getColumnIndexOrThrow(MediaStore.MediaColumns._ID))
+                        if (id > 0) return ContentUris.withAppendedId(baseUri, id)
+                    }
+                }
+
+                // Also query generic Files table
+                context.contentResolver.query(
+                    MediaStore.Files.getContentUri("external"),
+                    arrayOf(MediaStore.Files.FileColumns._ID),
+                    "${MediaStore.Files.FileColumns.DATA} = ?",
+                    arrayOf(path),
+                    null
+                )?.use { cursor ->
+                    if (cursor.moveToFirst()) {
+                        val id = cursor.getLong(cursor.getColumnIndexOrThrow(MediaStore.Files.FileColumns._ID))
+                        if (id > 0) return ContentUris.withAppendedId(MediaStore.Files.getContentUri("external"), id)
+                    }
+                }
+            } catch (_: Exception) {}
+        }
+
+        // 5. Query MediaStore by Display Name and Size
+        if (item.name.isNotEmpty()) {
+            try {
+                val baseUri = when (item.mediaType) {
+                    MediaType.IMAGE -> MediaStore.Images.Media.EXTERNAL_CONTENT_URI
+                    MediaType.VIDEO -> MediaStore.Video.Media.EXTERNAL_CONTENT_URI
+                    MediaType.AUDIO -> MediaStore.Audio.Media.EXTERNAL_CONTENT_URI
+                }
+                val selection = if (item.size > 0) {
+                    "${MediaStore.MediaColumns.DISPLAY_NAME} = ? AND ${MediaStore.MediaColumns.SIZE} = ?"
+                } else {
+                    "${MediaStore.MediaColumns.DISPLAY_NAME} = ?"
+                }
+                val selectionArgs = if (item.size > 0) {
+                    arrayOf(item.name, item.size.toString())
+                } else {
+                    arrayOf(item.name)
+                }
+                context.contentResolver.query(
+                    baseUri,
+                    arrayOf(MediaStore.MediaColumns._ID),
+                    selection,
+                    selectionArgs,
+                    null
+                )?.use { cursor ->
+                    if (cursor.moveToFirst()) {
+                        val id = cursor.getLong(cursor.getColumnIndexOrThrow(MediaStore.MediaColumns._ID))
+                        if (id > 0) return ContentUris.withAppendedId(baseUri, id)
+                    }
+                }
+            } catch (_: Exception) {}
+        }
+
+        return null
+    }
+
     suspend fun deleteItem(context: Context, item: MediaItem): DeleteRequestResult = withContext(Dispatchers.IO) {
-        // 1. Direct file check
-        if (item.uri.scheme == "file") {
-            val path = item.path ?: item.uri.path
-            if (path != null) {
-                val f = File(path)
+        // Step 1: Direct File deletion if URI is file:// or path exists in writable app storage
+        val directPath = if (item.uri.scheme == "file") item.uri.path else item.path
+        if (!directPath.isNullOrEmpty()) {
+            try {
+                val f = File(directPath)
                 if (f.exists() && f.delete()) {
+                    // File successfully deleted, clean up MediaStore index if any
+                    findCanonicalMediaStoreUri(context, item)?.let { msUri ->
+                        try {
+                            context.contentResolver.delete(msUri, null, null)
+                        } catch (_: Exception) {}
+                    }
                     return@withContext DeleteRequestResult.Success
                 }
-            }
-            return@withContext DeleteRequestResult.Failed
+            } catch (_: Exception) {}
         }
 
-        // 2. Android 11+ (API 30+) MediaStore Scoped Storage
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-            val isMediaStore = item.uri.authority == MediaStore.AUTHORITY || item.uriString.contains("media")
-            if (isMediaStore) {
-                try {
-                    // Try createDeleteRequest for MediaStore items - this triggers Android's system prompt
-                    val pi = MediaStore.createDeleteRequest(context.contentResolver, listOf(item.uri))
-                    return@withContext DeleteRequestResult.NeedsUserConsent(pi.intentSender)
-                } catch (e: Exception) {
-                    e.printStackTrace()
-                    // Fallback to direct delete if createDeleteRequest fails
-                    try {
-                        val rows = context.contentResolver.delete(item.uri, null, null)
-                        if (rows > 0) return@withContext DeleteRequestResult.Success
-                    } catch (ex: Exception) {
-                        ex.printStackTrace()
-                    }
-                    return@withContext DeleteRequestResult.Failed
-                }
-            }
-        }
+        // Step 2: Resolve canonical MediaStore content URI
+        val canonicalUri = findCanonicalMediaStoreUri(context, item)
+        val targetUri = canonicalUri ?: item.uri
 
-        // 3. Android 10 (API 29) RecoverableSecurityException
-        if (Build.VERSION.SDK_INT == Build.VERSION_CODES.Q) {
+        // Step 3: Android 11+ (API 30+) MediaStore Scoped Storage with createDeleteRequest
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R && targetUri.authority == MediaStore.AUTHORITY) {
+            // Try direct delete first (succeeds without prompt if file was created by this app)
             try {
-                val rows = context.contentResolver.delete(item.uri, null, null)
+                val rows = context.contentResolver.delete(targetUri, null, null)
+                if (rows > 0) return@withContext DeleteRequestResult.Success
+            } catch (_: SecurityException) {
+                // Expected for files owned by other apps; proceed to createDeleteRequest
+            } catch (_: Exception) {}
+
+            try {
+                val pi = MediaStore.createDeleteRequest(context.contentResolver, listOf(targetUri))
+                return@withContext DeleteRequestResult.NeedsUserConsent(pi.intentSender)
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
+
+        // Step 4: Android 10 (API 29) RecoverableSecurityException
+        if (Build.VERSION.SDK_INT == Build.VERSION_CODES.Q && targetUri.authority == MediaStore.AUTHORITY) {
+            try {
+                val rows = context.contentResolver.delete(targetUri, null, null)
                 if (rows > 0) return@withContext DeleteRequestResult.Success
             } catch (e: RecoverableSecurityException) {
                 return@withContext DeleteRequestResult.NeedsUserConsent(e.userAction.actionIntent.intentSender)
-            } catch (e: Exception) {
-                e.printStackTrace()
-                return@withContext DeleteRequestResult.Failed
-            }
+            } catch (_: Exception) {}
         }
 
-        // 4. Fallback for older Android (API <= 28) or non-MediaStore URIs
+        // Step 5: Direct delete on targetUri (Android <= 28 or granted WRITE_EXTERNAL_STORAGE)
         try {
-            val rows = context.contentResolver.delete(item.uri, null, null)
+            val rows = context.contentResolver.delete(targetUri, null, null)
             if (rows > 0) return@withContext DeleteRequestResult.Success
-        } catch (e: Exception) {
-            e.printStackTrace()
-        }
+        } catch (_: Exception) {}
 
-        // 5. DocumentsContract if document URI
+        // Step 6: DocumentsContract for SAF document URIs
         if (DocumentsContract.isDocumentUri(context, item.uri)) {
             try {
                 if (DocumentsContract.deleteDocument(context.contentResolver, item.uri)) {
                     return@withContext DeleteRequestResult.Success
                 }
-            } catch (e: Exception) {
-                e.printStackTrace()
-            }
+            } catch (_: Exception) {}
         }
 
-        // 6. Direct physical file deletion if path exists
+        // Step 7: Fallback direct delete on item.uri if different from targetUri
+        if (item.uri != targetUri) {
+            try {
+                val rows = context.contentResolver.delete(item.uri, null, null)
+                if (rows > 0) return@withContext DeleteRequestResult.Success
+            } catch (_: Exception) {}
+        }
+
+        // Step 8: Physical file deletion if path exists
         item.path?.let { p ->
             try {
                 val f = File(p)
                 if (f.exists() && f.delete()) {
                     return@withContext DeleteRequestResult.Success
                 }
-            } catch (e: Exception) {
-                e.printStackTrace()
-            }
+            } catch (_: Exception) {}
         }
 
         DeleteRequestResult.Failed
     }
 
     suspend fun directDelete(context: Context, item: MediaItem): Boolean = withContext(Dispatchers.IO) {
+        val canonicalUri = findCanonicalMediaStoreUri(context, item) ?: item.uri
         try {
-            val rows = context.contentResolver.delete(item.uri, null, null)
-            rows > 0
+            val rows = context.contentResolver.delete(canonicalUri, null, null)
+            if (rows > 0) return@withContext true
         } catch (e: Exception) {
             e.printStackTrace()
-            false
         }
+
+        if (canonicalUri != item.uri) {
+            try {
+                val rows = context.contentResolver.delete(item.uri, null, null)
+                if (rows > 0) return@withContext true
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
+
+        val directPath = if (item.uri.scheme == "file") item.uri.path else item.path
+        if (!directPath.isNullOrEmpty()) {
+            val f = File(directPath)
+            if (f.exists() && f.delete()) return@withContext true
+            if (!f.exists()) return@withContext true
+        }
+
+        false
     }
 }

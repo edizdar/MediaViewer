@@ -21,6 +21,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.ui.Modifier
+import android.provider.MediaStore
 import androidx.lifecycle.lifecycleScope
 import com.example.mediaviewer.data.DeleteRequestResult
 import com.example.mediaviewer.model.MediaItem
@@ -29,7 +30,10 @@ import com.example.mediaviewer.ui.theme.MediaViewerTheme
 import com.example.mediaviewer.ui.viewmodel.MediaViewModel
 import com.example.mediaviewer.ui.viewer.MediaViewerScreen
 import com.example.mediaviewer.util.LanguageManager
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import java.io.File
 
 class MainActivity : ComponentActivity() {
 
@@ -40,22 +44,50 @@ class MainActivity : ComponentActivity() {
             val item = viewModel.pendingDeleteItem
             viewModel.pendingDeleteItem = null
 
-            if (result.resultCode == Activity.RESULT_OK && item != null) {
-                if (Build.VERSION.SDK_INT == Build.VERSION_CODES.Q) {
-                    viewModel.executeDeleteAfterPermission(this@MainActivity, item) { success ->
-                        if (success) {
+            if (item != null) {
+                if (result.resultCode == Activity.RESULT_OK) {
+                    if (Build.VERSION.SDK_INT == Build.VERSION_CODES.Q) {
+                        viewModel.executeDeleteAfterPermission(this@MainActivity, item) { success ->
+                            if (success) {
+                                Toast.makeText(this@MainActivity, getString(R.string.delete_success), Toast.LENGTH_SHORT).show()
+                            } else {
+                                Toast.makeText(this@MainActivity, getString(R.string.delete_failed), Toast.LENGTH_SHORT).show()
+                            }
+                        }
+                    } else {
+                        // On Android 11+ (API 30+), MediaStore.createDeleteRequest automatically removes the file upon user consent
+                        viewModel.onItemDeleted(this@MainActivity, item)
+                        Toast.makeText(this@MainActivity, getString(R.string.delete_success), Toast.LENGTH_SHORT).show()
+                    }
+                } else if (result.resultCode == Activity.RESULT_CANCELED) {
+                    // User explicitly cancelled or denied the system confirmation prompt
+                } else {
+                    // Custom OEM result codes (Realme UI, ColorOS, MIUI)
+                    lifecycleScope.launch {
+                        val exists = withContext(Dispatchers.IO) {
+                            try {
+                                val p = item.path
+                                if (p != null && File(p).exists()) {
+                                    true
+                                } else {
+                                    val canonical = viewModel.repository.findCanonicalMediaStoreUri(this@MainActivity, item) ?: item.uri
+                                    val cursor = contentResolver.query(canonical, arrayOf(MediaStore.MediaColumns._ID), null, null, null)
+                                    val count = cursor?.count ?: 0
+                                    cursor?.close()
+                                    count > 0
+                                }
+                            } catch (_: Exception) {
+                                false
+                            }
+                        }
+                        if (!exists) {
+                            viewModel.onItemDeleted(this@MainActivity, item)
                             Toast.makeText(this@MainActivity, getString(R.string.delete_success), Toast.LENGTH_SHORT).show()
                         } else {
                             Toast.makeText(this@MainActivity, getString(R.string.delete_failed), Toast.LENGTH_SHORT).show()
                         }
                     }
-                } else {
-                    // On Android 11+ (API 30+), MediaStore.createDeleteRequest automatically deleted the file upon user consent
-                    viewModel.onItemDeleted(this@MainActivity, item)
-                    Toast.makeText(this@MainActivity, getString(R.string.delete_success), Toast.LENGTH_SHORT).show()
                 }
-            } else if (result.resultCode != Activity.RESULT_CANCELED) {
-                Toast.makeText(this@MainActivity, getString(R.string.delete_failed), Toast.LENGTH_SHORT).show()
             }
         }
 

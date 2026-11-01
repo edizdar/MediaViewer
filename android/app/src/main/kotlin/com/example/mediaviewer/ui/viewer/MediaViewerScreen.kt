@@ -277,8 +277,7 @@ fun MediaViewerScreen(
                     // Delete button
                     IconButton(
                         onClick = {
-                            val isMediaStore = currentItem.uri.authority == MediaStore.AUTHORITY || currentItem.uriString.contains("media")
-                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R && isMediaStore) {
+                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
                                 onDelete(currentItem)
                             } else {
                                 showDeleteDialog = true
