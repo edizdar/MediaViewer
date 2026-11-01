@@ -1,8 +1,10 @@
 package com.example.mediaviewer.ui.viewer.components
 
-import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.gestures.rememberTransformableState
 import androidx.compose.foundation.gestures.transformable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
@@ -15,7 +17,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
@@ -24,6 +25,7 @@ import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.example.mediaviewer.model.MediaItem
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun PhotoView(
     item: MediaItem,
@@ -60,29 +62,21 @@ fun PhotoView(
         modifier = modifier
             .fillMaxSize()
             .onSizeChanged { containerSize = it }
-            .pointerInput(Unit) {
-                detectTapGestures(
-                    onTap = { onToggleControls() },
-                    onDoubleTap = { tapOffset ->
-                        if (scale > 1.05f) {
-                            scale = 1f
-                            offset = Offset.Zero
-                            onZoomChanged(false)
-                        } else {
-                            scale = 2.5f
-                            if (containerSize.width > 0 && containerSize.height > 0) {
-                                val maxOffsetX = (containerSize.width * (2.5f - 1)) / 2f
-                                val maxOffsetY = (containerSize.height * (2.5f - 1)) / 2f
-                                offset = Offset(
-                                    x = (-(tapOffset.x - containerSize.width / 2f) * 1.5f).coerceIn(-maxOffsetX, maxOffsetX),
-                                    y = (-(tapOffset.y - containerSize.height / 2f) * 1.5f).coerceIn(-maxOffsetY, maxOffsetY)
-                                )
-                            }
-                            onZoomChanged(true)
-                        }
+            .combinedClickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null,
+                onClick = { onToggleControls() },
+                onDoubleClick = {
+                    if (scale > 1.05f) {
+                        scale = 1f
+                        offset = Offset.Zero
+                        onZoomChanged(false)
+                    } else {
+                        scale = 2.5f
+                        onZoomChanged(true)
                     }
-                )
-            }
+                }
+            )
             .transformable(
                 state = transformableState,
                 canPan = { scale > 1.05f }

@@ -35,12 +35,15 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.FolderOpen
 import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.Language
+import androidx.compose.material.icons.filled.LiveTv
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Security
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Videocam
+import com.example.mediaviewer.ui.dialogs.NetworkStreamDialog
 import com.example.mediaviewer.ui.dialogs.SettingsDialog
+import com.example.mediaviewer.ui.theme.AccentCyan
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -147,6 +150,7 @@ fun GalleryScreen(
     }
 
     var showSettingsDialog by remember { mutableStateOf(false) }
+    var showStreamDialog by remember { mutableStateOf(false) }
     var updateInfo by remember { mutableStateOf<AppUpdateInfo?>(null) }
     var showUpdateBanner by remember { mutableStateOf(false) }
     val coroutineScope = rememberCoroutineScope()
@@ -202,6 +206,13 @@ fun GalleryScreen(
                     }
                 },
                 actions = {
+                    IconButton(onClick = { showStreamDialog = true }) {
+                        Icon(
+                            imageVector = Icons.Default.LiveTv,
+                            contentDescription = stringResource(R.string.stream_open),
+                            tint = AccentCyan
+                        )
+                    }
                     IconButton(onClick = { showSettingsDialog = true }) {
                         Icon(
                             imageVector = Icons.Default.Settings,
@@ -347,6 +358,22 @@ fun GalleryScreen(
                     }
                 }
             }
+        }
+
+        if (showStreamDialog) {
+            NetworkStreamDialog(
+                onDismiss = { showStreamDialog = false },
+                onPlayStream = { streamItem ->
+                    showStreamDialog = false
+                    onItemClick(listOf(streamItem), 0)
+                },
+                onPlayPlaylist = { playlistItems ->
+                    showStreamDialog = false
+                    if (playlistItems.isNotEmpty()) {
+                        onItemClick(playlistItems, 0)
+                    }
+                }
+            )
         }
 
         if (showSettingsDialog) {

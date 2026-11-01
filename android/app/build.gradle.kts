@@ -11,8 +11,8 @@ android {
     applicationId = "com.example.mediaviewer"
     minSdk = 24
     targetSdk = 36
-    versionCode = 7
-    versionName = "1.2.9"
+    versionCode = 8
+    versionName = "1.3.0"
   }
 
   buildTypes {
@@ -83,8 +83,11 @@ dependencies {
   implementation(libs.androidx.navigation3.runtime)
   implementation(libs.androidx.lifecycle.viewmodel.navigation3)
 
-  // Media3 (ExoPlayer for ultra-fast, universal video & audio playback)
+  // Media3 (ExoPlayer for ultra-fast, universal video, audio & network streaming playback)
   implementation(libs.media3.exoplayer)
+  implementation(libs.media3.exoplayer.hls)
+  implementation(libs.media3.exoplayer.rtsp)
+  implementation(libs.media3.exoplayer.dash)
   implementation(libs.media3.ui)
   implementation(libs.media3.session)
 

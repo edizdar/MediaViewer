@@ -90,4 +90,11 @@
     <string name="all_files_permission_granted">✅ Tüm Dosyalara Erişim İzni Verildi (Her silmede sistem onay kutusu çıkmaz)</string>
     <string name="all_files_permission_needed">⚙️ Tüm Dosyalara Erişim İzni Ver</string>
     <string name="all_files_permission_desc">Android\'in her fotoğraf silmede ayrı onay sormasını engellemek için Tüm Dosyalara Erişim iznini açabilirsiniz.</string>
+    <string name="stream_open">Ağ Akışı Aç</string>
+    <string name="stream_saved_success">Akış kaydedilenlere eklendi</string>
+    <string name="stream_remove_success">Akış kaydedilenlerden çıkarıldı</string>
+    <string name="stream_save">Akışı Kaydet</string>
+    <string name="stream_quality">Yayın Kalitesi</string>
+    <string name="stream_buffer_low_latency">Düşük Gecikme (IP Kamera)</string>
+    <string name="stream_buffer_balanced">Dengeli Tampon (IPTV/HLS)</string>
 </resources>

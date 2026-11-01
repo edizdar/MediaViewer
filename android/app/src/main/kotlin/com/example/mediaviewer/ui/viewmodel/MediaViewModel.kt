@@ -68,6 +68,19 @@ class MediaViewModel(
 
     fun openExternalUri(context: Context, uri: Uri, onLoaded: () -> Unit = {}) {
         viewModelScope.launch {
+            val pathOrUri = uri.toString().lowercase()
+            if (pathOrUri.endsWith(".m3u") || pathOrUri.endsWith(".m3u8")) {
+                val parsedItems = com.example.mediaviewer.util.M3uParser.parseFromUri(context, uri)
+                if (parsedItems.isNotEmpty()) {
+                    _viewerState.value = ViewerUiState(
+                        items = parsedItems,
+                        initialIndex = 0,
+                        isExternal = true
+                    )
+                    onLoaded()
+                    return@launch
+                }
+            }
             val item = repository.resolveUri(context, uri)
             val siblings = repository.getSiblings(context, item)
             val initialIndex = siblings.indexOfFirst { it.uriString == item.uriString }.let {

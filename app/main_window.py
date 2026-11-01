@@ -204,6 +204,7 @@ class MainWindow(QMainWindow):
         """Wire up all signals between components."""
         # Top toolbar
         self._top_toolbar.open_file_clicked.connect(self.open_file_dialog)
+        self._top_toolbar.open_stream_clicked.connect(self.open_network_stream_dialog)
         self._top_toolbar.previous_clicked.connect(self._on_nav_prev)
         self._top_toolbar.next_clicked.connect(self._on_nav_next)
         self._top_toolbar.fullscreen_clicked.connect(self._toggle_fullscreen)
@@ -255,6 +256,7 @@ class MainWindow(QMainWindow):
         """Register keyboard shortcuts."""
         shortcuts = {
             "Ctrl+O": self.open_file_dialog,
+            "Ctrl+U": self.open_network_stream_dialog,
             "Ctrl+S": self._on_save_shortcut,
             "Ctrl++": self._image_viewer.zoom_in,
             "Ctrl+=": self._image_viewer.zoom_in,
@@ -490,12 +492,77 @@ class MainWindow(QMainWindow):
         if file_path:
             self.open_file(file_path)
 
+    def open_network_stream_dialog(self) -> None:
+        """Open the network stream dialog."""
+        from app.network_stream_dialog import NetworkStreamDialog
+        dialog = NetworkStreamDialog(self)
+        dialog.stream_selected.connect(self.open_stream)
+        dialog.exec()
+
+    def open_stream(self, url: str, name: str = "", buffer_mode: str = "balanced") -> None:
+        """Play a network stream in the video player."""
+        if not url:
+            return
+
+        self._image_viewer.clear()
+        self._video_player.cleanup()
+
+        self._stack.setCurrentIndex(2)
+        self._video_player.load_media(url)
+        self._video_player.play()
+
+        display_name = name or url.split("/")[-1].split("?")[0] or "Canlı Ağ Akışı"
+        mode_str = "⚡ Düşük Gecikme" if buffer_mode == "low_latency" else "⚖️ Dengeli"
+        self._top_toolbar.set_file_info(f"🔴 [{mode_str}] {display_name}", 1, 1)
+        self.setWindowTitle(f"MediaViewer - {display_name}")
+
+    def _load_m3u_playlist(self, path: Path) -> None:
+        """Parse an M3U or M3U8 playlist file and load items into the playlist panel."""
+        try:
+            with open(path, "r", encoding="utf-8", errors="ignore") as f:
+                lines = f.readlines()
+        except Exception as e:
+            QMessageBox.warning(self, "Hata", f"M3U dosyası okunamadı:\n{e}")
+            return
+
+        urls = []
+        name = path.stem
+        for line in lines:
+            line = line.strip()
+            if not line or line.startswith("#"):
+                continue
+            urls.append(line)
+
+        if not urls:
+            QMessageBox.information(self, "Bilgi", "M3U oynatma listesinde geçerli akış/dosya bulunamadı.")
+            return
+
+        self._playlist_panel.setVisible(True)
+        first = urls[0]
+        if first.startswith(("http://", "https://", "rtsp://", "rtmp://")):
+            self.open_stream(first, name=f"{name} - 1")
+        else:
+            resolved_p = (path.parent / first).resolve() if not Path(first).is_absolute() else Path(first)
+            if resolved_p.exists():
+                self.open_file(resolved_p)
+            else:
+                self.open_stream(first)
+
     def open_file(self, path: str | Path) -> None:
-        """Open and display the given file."""
+        """Open and display the given file or URL."""
+        path_str = str(path).strip()
+        if path_str.startswith(("http://", "https://", "rtsp://", "rtmp://")):
+            self.open_stream(path_str)
+            return
+
         path = Path(path).resolve()
 
         if not path.is_file():
             QMessageBox.warning(self, loc("error_title"), loc("file_not_found").format(path))
+            return
+
+        if path.suffix.lower() in (".m3u", ".m3u8"):
+            self._load_m3u_playlist(path)
             return
 
         # Stop any current video playback

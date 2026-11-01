@@ -36,6 +36,7 @@ class TopToolbar(QWidget):
     """Top toolbar with file operations and navigation."""
 
     open_file_clicked = Signal()
+    open_stream_clicked = Signal()
     previous_clicked = Signal()
     next_clicked = Signal()
     fullscreen_clicked = Signal()
@@ -61,6 +62,11 @@ class TopToolbar(QWidget):
         self._open_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         self._open_btn.clicked.connect(self.open_file_clicked)
         layout.addWidget(self._open_btn)
+
+        # Open network stream button
+        self._stream_btn = _icon_button("📺", "Ağ Akışı Aç (RTSP / HLS / M3U) (Ctrl+U)")
+        self._stream_btn.clicked.connect(self.open_stream_clicked)
+        layout.addWidget(self._stream_btn)
 
         # Playlist toggle button
         self._playlist_btn = _icon_button("📋", loc("playlist_tip"))

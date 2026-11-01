@@ -280,7 +280,7 @@ class MediaRepository {
                 val ext = name.substringAfterLast('.', "").lowercase()
                 when (ext) {
                     "jpg", "jpeg", "png", "webp", "gif", "bmp", "heic", "avif" -> MediaType.IMAGE
-                    "mp4", "mkv", "avi", "mov", "3gp", "webm", "flv", "ts", "m4v", "wmv" -> MediaType.VIDEO
+                    "mp4", "mkv", "avi", "mov", "3gp", "webm", "flv", "ts", "m4v", "wmv", "m3u8", "m3u" -> MediaType.VIDEO
                     "mp3", "wav", "flac", "m4a", "aac", "ogg", "wma", "opus" -> MediaType.AUDIO
                     else -> MediaType.IMAGE
                 }
@@ -378,7 +378,8 @@ class MediaRepository {
             MediaStore.MediaColumns.SIZE,
             MediaStore.MediaColumns.DATE_MODIFIED,
             MediaStore.MediaColumns.WIDTH,
-            MediaStore.MediaColumns.HEIGHT
+            MediaStore.MediaColumns.HEIGHT,
+            MediaStore.MediaColumns.DATA
         )
         val selection = "${MediaStore.MediaColumns.BUCKET_ID} = ?"
         val selectionArgs = arrayOf(bucketId)
@@ -398,6 +399,7 @@ class MediaRepository {
                 val dateCol = cursor.getColumnIndexOrThrow(MediaStore.MediaColumns.DATE_MODIFIED)
                 val widthCol = cursor.getColumnIndex(MediaStore.MediaColumns.WIDTH)
                 val heightCol = cursor.getColumnIndex(MediaStore.MediaColumns.HEIGHT)
+                val dataCol = cursor.getColumnIndex(MediaStore.MediaColumns.DATA)
 
                 while (cursor.moveToNext()) {
                     val id = cursor.getLong(idCol)
@@ -408,6 +410,7 @@ class MediaRepository {
                     val date = cursor.getLong(dateCol)
                     val width = if (widthCol != -1) cursor.getInt(widthCol) else 0
                     val height = if (heightCol != -1) cursor.getInt(heightCol) else 0
+                    val path = if (dataCol != -1) cursor.getString(dataCol) else null
 
                     targetList.add(
                         MediaItem(
@@ -419,7 +422,8 @@ class MediaRepository {
                             size = size,
                             dateModified = date,
                             width = width,
-                            height = height
+                            height = height,
+                            path = path
                         )
                     )
                 }

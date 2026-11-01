@@ -90,4 +90,11 @@
     <string name="all_files_permission_granted">✅ All Files Access Granted (No confirmation popup on every delete)</string>
     <string name="all_files_permission_needed">⚙️ Grant All Files Access</string>
     <string name="all_files_permission_desc">Grant All Files Access to prevent Android from asking for permission on every single photo deletion.</string>
+    <string name="stream_open">Open Network Stream</string>
+    <string name="stream_saved_success">Stream saved to bookmarks</string>
+    <string name="stream_remove_success">Stream removed from bookmarks</string>
+    <string name="stream_save">Bookmark Stream</string>
+    <string name="stream_quality">Stream Quality</string>
+    <string name="stream_buffer_low_latency">Low Latency (IP Camera)</string>
+    <string name="stream_buffer_balanced">Balanced Buffer (IPTV/HLS)</string>
 </resources>

@@ -20,7 +20,7 @@ class FileManager:
         ".webm", ".mpg", ".mpeg", ".m2v", ".3gp", ".3g2",
         ".mts", ".m2ts", ".m2t", ".ts", ".vob", ".ogv",
         ".asf", ".f4v", ".rm", ".rmvb", ".divx", ".xvid",
-        ".wm", ".wmp", ".amv", ".yuv",
+        ".wm", ".wmp", ".amv", ".yuv", ".m3u", ".m3u8",
     }
 
     AUDIO_EXTENSIONS = {

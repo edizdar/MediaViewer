@@ -112,6 +112,16 @@ class MainActivity : ComponentActivity() {
                 }
                 is DeleteRequestResult.Failed -> {
                     Toast.makeText(this@MainActivity, getString(R.string.delete_failed), Toast.LENGTH_SHORT).show()
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R && !com.example.mediaviewer.util.SettingsManager.hasAllFilesAccess()) {
+                        android.app.AlertDialog.Builder(this@MainActivity)
+                            .setTitle(getString(R.string.all_files_permission_title))
+                            .setMessage(getString(R.string.all_files_permission_desc))
+                            .setPositiveButton(getString(R.string.all_files_permission_needed)) { _, _ ->
+                                com.example.mediaviewer.util.SettingsManager.openAllFilesAccessSettings(this@MainActivity)
+                            }
+                            .setNegativeButton(android.R.string.cancel, null)
+                            .show()
+                    }
                 }
             }
         }

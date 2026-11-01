@@ -32,6 +32,8 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.automirrored.filled.RotateLeft
 import androidx.compose.material.icons.automirrored.filled.RotateRight
+import androidx.compose.material.icons.filled.Bookmark
+import androidx.compose.material.icons.filled.BookmarkBorder
 import androidx.compose.material.icons.filled.Crop
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Flip
@@ -41,6 +43,7 @@ import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.QueueMusic
 import androidx.compose.material.icons.filled.Save
 import androidx.compose.material.icons.filled.Share
+import com.example.mediaviewer.data.StreamManager
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -321,13 +324,26 @@ fun MediaViewerScreen(
                         )
                     }
 
+                    val isStream = currentItem.uriString.startsWith("http://") || 
+                        currentItem.uriString.startsWith("https://") || 
+                        currentItem.uriString.startsWith("rtsp://")
+
+                    var isStreamSaved by remember(currentItem.uriString) {
+                        mutableStateOf(StreamManager.getSavedStreams(context).any { it.url == currentItem.uriString })
+                    }
+
                     // Share button
                     IconButton(
                         onClick = {
                             val shareIntent = Intent(Intent.ACTION_SEND).apply {
-                                type = currentItem.mimeType
-                                putExtra(Intent.EXTRA_STREAM, currentItem.uri)
-                                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                                if (isStream) {
+                                    type = "text/plain"
+                                    putExtra(Intent.EXTRA_TEXT, currentItem.uriString)
+                                } else {
+                                    type = currentItem.mimeType
+                                    putExtra(Intent.EXTRA_STREAM, currentItem.uri)
+                                    addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                                }
                             }
                             context.startActivity(Intent.createChooser(shareIntent, "Paylaş"))
                         }
@@ -339,21 +355,53 @@ fun MediaViewerScreen(
                         )
                     }
 
-                    // Delete button
-                    IconButton(
-                        onClick = {
-                            if (SettingsManager.confirmDeleteState.value) {
-                                showDeleteDialog = true
-                            } else {
-                                onDelete(currentItem)
+                    if (isStream) {
+                        // Bookmark Stream button
+                        IconButton(
+                            onClick = {
+                                if (isStreamSaved) {
+                                    val found = StreamManager.getSavedStreams(context).firstOrNull { it.url == currentItem.uriString }
+                                    if (found != null) {
+                                        StreamManager.deleteStream(context, found.id)
+                                    }
+                                    isStreamSaved = false
+                                    Toast.makeText(context, context.getString(R.string.stream_remove_success), Toast.LENGTH_SHORT).show()
+                                } else {
+                                    StreamManager.saveStream(
+                                        context = context,
+                                        name = currentItem.name,
+                                        url = currentItem.uriString,
+                                        type = StreamManager.inferStreamType(currentItem.uriString),
+                                        bufferMode = "BALANCED"
+                                    )
+                                    isStreamSaved = true
+                                    Toast.makeText(context, context.getString(R.string.stream_saved_success), Toast.LENGTH_SHORT).show()
+                                }
                             }
+                        ) {
+                            Icon(
+                                imageVector = if (isStreamSaved) Icons.Default.Bookmark else Icons.Default.BookmarkBorder,
+                                contentDescription = stringResource(R.string.stream_save),
+                                tint = if (isStreamSaved) AccentCyan else Color.White
+                            )
                         }
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Delete,
-                            contentDescription = stringResource(R.string.delete),
-                            tint = AccentRed
-                        )
+                    } else {
+                        // Delete button (local files only)
+                        IconButton(
+                            onClick = {
+                                if (SettingsManager.confirmDeleteState.value) {
+                                    showDeleteDialog = true
+                                } else {
+                                    onDelete(currentItem)
+                                }
+                            }
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Delete,
+                                contentDescription = stringResource(R.string.delete),
+                                tint = AccentRed
+                            )
+                        }
                     }
 
                     // Info button

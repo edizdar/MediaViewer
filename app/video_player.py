@@ -1205,7 +1205,11 @@ class VideoPlayer(QWidget):
         self._player.setAudioOutput(self._audio_output)
         self._audio_attached = True
 
-        url = QUrl.fromLocalFile(str(self._current_path))
+        path_str = str(self._current_path)
+        if path_str.startswith(("http://", "https://", "rtsp://", "rtmp://")):
+            url = QUrl(path_str)
+        else:
+            url = QUrl.fromLocalFile(path_str)
         self._player.setSource(url)
         self._play_btn.setText("▶")
         self._time_label.setText("00:00 / 00:00")
