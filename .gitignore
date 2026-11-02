@@ -6,6 +6,7 @@ build/
 .vscode/
 .idea/
 /MediaViewer*.exe
+versions/
 dist/
 
 # Android build outputs and caches

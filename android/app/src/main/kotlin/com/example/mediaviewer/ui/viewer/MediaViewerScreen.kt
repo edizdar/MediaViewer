@@ -10,6 +10,11 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.focusable
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.input.key.*
+import android.view.KeyEvent as AndroidKeyEvent
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -136,7 +141,7 @@ fun MediaViewerScreen(
     var showAdjustmentSheet by remember { mutableStateOf(false) }
     var showUpscaleDialog by remember { mutableStateOf(false) }
     var showCropDialog by remember { mutableStateOf(false) }
-    var showPlaylistFilmstrip by remember { mutableStateOf(false) }
+    var showPlaylistFilmstrip by remember { mutableStateOf(items.size > 1) }
     var showTrimSheet by remember { mutableStateOf(false) }
     var trimTotalDurationMs by remember { mutableLongStateOf(0L) }
 
@@ -157,10 +162,54 @@ fun MediaViewerScreen(
         onBack()
     }
 
+    val focusRequester = remember { FocusRequester() }
+    LaunchedEffect(Unit) {
+        focusRequester.requestFocus()
+    }
+
     Box(
         modifier = Modifier
             .fillMaxSize()
             .background(Color.Black)
+            .focusRequester(focusRequester)
+            .focusable()
+            .onKeyEvent { event ->
+                if (event.type == KeyEventType.KeyDown) {
+                    when (event.nativeKeyEvent.keyCode) {
+                        AndroidKeyEvent.KEYCODE_DPAD_CENTER, AndroidKeyEvent.KEYCODE_ENTER, AndroidKeyEvent.KEYCODE_NUMPAD_ENTER -> {
+                            controlsVisible = !controlsVisible
+                            true
+                        }
+                        AndroidKeyEvent.KEYCODE_DPAD_LEFT, AndroidKeyEvent.KEYCODE_MEDIA_PREVIOUS, AndroidKeyEvent.KEYCODE_MEDIA_REWIND -> {
+                            if (pagerState.currentPage > 0) {
+                                scope.launch {
+                                    pagerState.animateScrollToPage(pagerState.currentPage - 1)
+                                }
+                                true
+                            } else false
+                        }
+                        AndroidKeyEvent.KEYCODE_DPAD_RIGHT, AndroidKeyEvent.KEYCODE_MEDIA_NEXT, AndroidKeyEvent.KEYCODE_MEDIA_FAST_FORWARD -> {
+                            if (pagerState.currentPage < items.size - 1) {
+                                scope.launch {
+                                    pagerState.animateScrollToPage(pagerState.currentPage + 1)
+                                }
+                                true
+                            } else false
+                        }
+                        AndroidKeyEvent.KEYCODE_DPAD_UP -> {
+                            controlsVisible = true
+                            true
+                        }
+                        AndroidKeyEvent.KEYCODE_DPAD_DOWN -> {
+                            if (items.size > 1) {
+                                showPlaylistFilmstrip = !showPlaylistFilmstrip
+                                true
+                            } else false
+                        }
+                        else -> false
+                    }
+                } else false
+            }
     ) {
         // Horizontal Pager for swiping across items
         HorizontalPager(

@@ -1,9 +1,12 @@
 package com.example.mediaviewer.ui.dialogs
 
+import android.content.Context
 import android.widget.Toast
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -17,6 +20,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material.icons.filled.BookmarkBorder
+import androidx.compose.material.icons.filled.ContentPaste
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.LiveTv
 import androidx.compose.material.icons.filled.PlayArrow
@@ -29,6 +33,7 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CheckboxDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -49,7 +54,9 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import kotlinx.coroutines.launch
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -75,12 +82,14 @@ fun NetworkStreamDialog(
     onPlayPlaylist: (List<MediaItem>) -> Unit = {}
 ) {
     val context = LocalContext.current
+    val coroutineScope = rememberCoroutineScope()
     var selectedTabIndex by remember { mutableIntStateOf(0) } // 0: Yeni Akış Aç, 1: Kayıtlı Akışlar
 
     var urlText by remember { mutableStateOf("") }
     var nameText by remember { mutableStateOf("") }
     var saveStreamChecked by remember { mutableStateOf(true) }
     var bufferMode by remember { mutableStateOf(StreamManager.getBufferMode(context)) }
+    var isLoadingM3u by remember { mutableStateOf(false) }
 
     var savedStreams by remember { mutableStateOf(StreamManager.getSavedStreams(context)) }
 
@@ -158,20 +167,62 @@ fun NetworkStreamDialog(
                             color = TextSecondary
                         )
 
-                        OutlinedTextField(
-                            value = urlText,
-                            onValueChange = { urlText = it },
-                            placeholder = { Text("rtsp://... veya https://.../stream.m3u8", fontSize = 12.sp, color = TextMuted) },
+                        Row(
                             modifier = Modifier.fillMaxWidth(),
-                            singleLine = true,
-                            colors = OutlinedTextFieldDefaults.colors(
-                                focusedBorderColor = AccentBlue,
-                                unfocusedBorderColor = Color(0xFF2E3846),
-                                focusedTextColor = TextPrimary,
-                                unfocusedTextColor = TextPrimary
-                            ),
-                            shape = RoundedCornerShape(10.dp)
-                        )
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            OutlinedTextField(
+                                value = urlText,
+                                onValueChange = { urlText = it },
+                                placeholder = { Text("rtsp://... veya https://.../stream.m3u8", fontSize = 12.sp, color = TextMuted) },
+                                modifier = Modifier.weight(1f),
+                                singleLine = true,
+                                colors = OutlinedTextFieldDefaults.colors(
+                                    focusedBorderColor = AccentBlue,
+                                    unfocusedBorderColor = Color(0xFF2E3846),
+                                    focusedTextColor = TextPrimary,
+                                    unfocusedTextColor = TextPrimary
+                                ),
+                                shape = RoundedCornerShape(10.dp)
+                            )
+
+                            OutlinedButton(
+                                onClick = {
+                                    try {
+                                        val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as? android.content.ClipboardManager
+                                        val clipData = clipboard?.primaryClip
+                                        if (clipData != null && clipData.itemCount > 0) {
+                                            val pasted = clipData.getItemAt(0)?.text?.toString()?.trim() ?: ""
+                                            if (pasted.isNotBlank()) {
+                                                urlText = pasted
+                                                if (nameText.isBlank()) {
+                                                    nameText = StreamManager.inferStreamName(pasted)
+                                                }
+                                                Toast.makeText(context, "Panodan yapıştırıldı", Toast.LENGTH_SHORT).show()
+                                            } else {
+                                                Toast.makeText(context, "Pano boş", Toast.LENGTH_SHORT).show()
+                                            }
+                                        } else {
+                                            Toast.makeText(context, "Pano boş", Toast.LENGTH_SHORT).show()
+                                        }
+                                    } catch (_: Exception) {
+                                        Toast.makeText(context, "Pano okunamadı", Toast.LENGTH_SHORT).show()
+                                    }
+                                },
+                                shape = RoundedCornerShape(10.dp),
+                                contentPadding = PaddingValues(horizontal = 10.dp, vertical = 12.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.ContentPaste,
+                                    contentDescription = "Panodan Yapıştır",
+                                    tint = AccentCyan,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text("Yapıştır", fontSize = 12.sp, color = TextPrimary)
+                            }
+                        }
 
                         OutlinedTextField(
                             value = nameText,
@@ -269,6 +320,7 @@ fun NetworkStreamDialog(
                                 shape = RoundedCornerShape(10.dp),
                                 modifier = Modifier
                                     .fillMaxWidth()
+                                    .focusable()
                                     .clickable {
                                         StreamManager.setBufferMode(context, stream.bufferMode)
                                         onDismiss()
@@ -354,7 +406,7 @@ fun NetworkStreamDialog(
                                 selectedTabIndex = 1
                             }
                         },
-                        enabled = urlText.isNotBlank(),
+                        enabled = urlText.isNotBlank() && !isLoadingM3u,
                         shape = RoundedCornerShape(10.dp)
                     ) {
                         Text("💾 Kaydet")
@@ -374,16 +426,65 @@ fun NetworkStreamDialog(
                                     url = cleanUrl,
                                     bufferMode = bufferMode
                                 ).toMediaItem()
-                                onDismiss()
-                                onPlayStream(streamItem)
+
+                                val isM3uUrl = cleanUrl.endsWith(".m3u", ignoreCase = true) ||
+                                        cleanUrl.endsWith(".m3u8", ignoreCase = true) ||
+                                        cleanUrl.contains("type=m3u", ignoreCase = true) ||
+                                        cleanUrl.contains("output=m3u", ignoreCase = true) ||
+                                        cleanUrl.contains("/get.php", ignoreCase = true)
+
+                                if (isM3uUrl) {
+                                    coroutineScope.launch {
+                                        isLoadingM3u = true
+                                        try {
+                                            val parsed = com.example.mediaviewer.util.M3uParser.parseFromUri(context, android.net.Uri.parse(cleanUrl))
+                                            isLoadingM3u = false
+                                            onDismiss()
+                                            if (parsed.isNotEmpty()) {
+                                                onPlayPlaylist(parsed)
+                                            } else {
+                                                onPlayStream(streamItem)
+                                            }
+                                        } catch (_: Exception) {
+                                            isLoadingM3u = false
+                                            onDismiss()
+                                            onPlayStream(streamItem)
+                                        }
+                                    }
+                                } else {
+                                    onDismiss()
+                                    onPlayStream(streamItem)
+                                }
                             }
                         },
-                        enabled = urlText.isNotBlank(),
+                        enabled = urlText.isNotBlank() && !isLoadingM3u,
                         colors = ButtonDefaults.buttonColors(containerColor = AccentBlue),
                         shape = RoundedCornerShape(10.dp)
                     ) {
-                        Text("▶️ Oynat", fontWeight = FontWeight.Bold)
+                        if (isLoadingM3u) {
+                            CircularProgressIndicator(color = Color.White, modifier = Modifier.size(16.dp))
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text("Yükleniyor...")
+                        } else {
+                            Text("▶️ Oynat", fontWeight = FontWeight.Bold)
+                        }
                     }
+                }
+            } else {
+                Button(
+                    onClick = {
+                        val firstStream = savedStreams.firstOrNull()
+                        if (firstStream != null) {
+                            StreamManager.setBufferMode(context, firstStream.bufferMode)
+                            onDismiss()
+                            onPlayStream(firstStream.toMediaItem())
+                        }
+                    },
+                    enabled = savedStreams.isNotEmpty(),
+                    colors = ButtonDefaults.buttonColors(containerColor = AccentBlue),
+                    shape = RoundedCornerShape(10.dp)
+                ) {
+                    Text("▶️ Oynat", fontWeight = FontWeight.Bold)
                 }
             }
         },

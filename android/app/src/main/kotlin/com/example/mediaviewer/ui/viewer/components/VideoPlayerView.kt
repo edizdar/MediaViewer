@@ -51,6 +51,8 @@ import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Replay
 import androidx.compose.material.icons.filled.Speed
 import androidx.compose.material.icons.filled.VolumeUp
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -61,6 +63,10 @@ import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.ui.text.style.TextAlign
+import androidx.media3.datasource.DefaultDataSource
+import androidx.media3.datasource.DefaultHttpDataSource
+import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -122,7 +128,7 @@ fun VideoPlayerView(
 
     val bufferMode = remember { StreamManager.getBufferMode(context) }
 
-    // ExoPlayer instance configured with network latency tuning and load control
+    // ExoPlayer instance configured with network latency tuning, cross-protocol redirects, and custom HTTP data source
     val exoPlayer = remember {
         val loadControl = DefaultLoadControl.Builder()
             .setBufferDurationsMs(
@@ -133,7 +139,17 @@ fun VideoPlayerView(
             )
             .build()
 
+        val httpDataSourceFactory = DefaultHttpDataSource.Factory()
+            .setUserAgent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36 MediaViewer/1.3.5")
+            .setConnectTimeoutMs(15_000)
+            .setReadTimeoutMs(15_000)
+            .setAllowCrossProtocolRedirects(true)
+
+        val dataSourceFactory = DefaultDataSource.Factory(context, httpDataSourceFactory)
+        val mediaSourceFactory = DefaultMediaSourceFactory(dataSourceFactory)
+
         ExoPlayer.Builder(context)
+            .setMediaSourceFactory(mediaSourceFactory)
             .setLoadControl(loadControl)
             .build().apply {
                 repeatMode = Player.REPEAT_MODE_OFF
@@ -144,6 +160,7 @@ fun VideoPlayerView(
     var currentPosition by remember { mutableLongStateOf(0L) }
     var duration by remember { mutableLongStateOf(0L) }
     var isBuffering by remember { mutableStateOf(true) }
+    var playerErrorMessage by remember { mutableStateOf<String?>(null) }
     var isLiveStream by remember { mutableStateOf(isRtsp || item.uriString.contains(".m3u8", ignoreCase = true)) }
     var playbackSpeed by remember { mutableFloatStateOf(1.0f) }
     var resizeMode by remember { mutableIntStateOf(AspectRatioFrameLayout.RESIZE_MODE_FIT) }
@@ -198,9 +215,16 @@ fun VideoPlayerView(
                 isPlaying = playing
             }
 
+            override fun onPlayerError(error: androidx.media3.common.PlaybackException) {
+                isBuffering = false
+                val causeMsg = error.cause?.message ?: error.message ?: "Akışa bağlanılamadı"
+                playerErrorMessage = "Yayın bağlantı hatası: $causeMsg"
+            }
+
             override fun onPlaybackStateChanged(state: Int) {
                 isBuffering = state == Player.STATE_BUFFERING
                 if (state == Player.STATE_READY) {
+                    playerErrorMessage = null
                     val d = exoPlayer.duration
                     duration = d.coerceAtLeast(0L)
                     isLiveStream = exoPlayer.isCurrentMediaItemLive || isRtsp || d <= 0L
@@ -326,7 +350,7 @@ fun VideoPlayerView(
         )
 
         // Buffering indicator
-        if (isBuffering) {
+        if (isBuffering && playerErrorMessage == null) {
             Box(
                 modifier = Modifier.fillMaxSize(),
                 contentAlignment = Alignment.Center
@@ -335,6 +359,50 @@ fun VideoPlayerView(
                     color = AccentBlue,
                     modifier = Modifier.size(48.dp)
                 )
+            }
+        }
+
+        // Error message & Retry overlay
+        if (playerErrorMessage != null) {
+            Surface(
+                shape = RoundedCornerShape(14.dp),
+                color = OverlayDark,
+                modifier = Modifier
+                    .align(Alignment.Center)
+                    .padding(24.dp)
+            ) {
+                Column(
+                    modifier = Modifier.padding(20.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Text(
+                        text = "⚠️ Akış Bağlantı Hatası",
+                        color = AccentRed,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 15.sp
+                    )
+                    Text(
+                        text = playerErrorMessage ?: "Yayın sunucusuna bağlanılamadı.",
+                        color = TextSecondary,
+                        fontSize = 12.sp,
+                        textAlign = TextAlign.Center
+                    )
+                    Button(
+                        onClick = {
+                            playerErrorMessage = null
+                            isBuffering = true
+                            exoPlayer.prepare()
+                            exoPlayer.play()
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = AccentBlue),
+                        shape = RoundedCornerShape(10.dp)
+                    ) {
+                        Icon(Icons.Default.Refresh, contentDescription = null, modifier = Modifier.size(18.dp))
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text("Yeniden Bağlan")
+                    }
+                }
             }
         }
 
@@ -692,8 +760,12 @@ fun VideoPlayerView(
                                         if (isPlaying) {
                                             exoPlayer.pause()
                                         } else {
+                                            playerErrorMessage = null
                                             if (exoPlayer.playbackState == Player.STATE_ENDED) {
                                                 exoPlayer.seekTo(0)
+                                            }
+                                            if (exoPlayer.playbackState == Player.STATE_IDLE || exoPlayer.playerError != null) {
+                                                exoPlayer.prepare()
                                             }
                                             exoPlayer.play()
                                         }

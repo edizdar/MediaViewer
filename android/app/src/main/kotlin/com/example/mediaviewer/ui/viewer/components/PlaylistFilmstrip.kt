@@ -3,6 +3,7 @@ package com.example.mediaviewer.ui.viewer.components
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -105,10 +106,14 @@ fun PlaylistFilmstrip(
                 itemsIndexed(items) { index, item ->
                     val isSelected = index == currentIndex
                     val context = LocalContext.current
+                    val isNetworkStream = item.uriString.startsWith("http://", ignoreCase = true) ||
+                            item.uriString.startsWith("https://", ignoreCase = true) ||
+                            item.uriString.startsWith("rtsp://", ignoreCase = true)
 
                     Box(
                         modifier = Modifier
-                            .size(60.dp)
+                            .height(60.dp)
+                            .width(if (isNetworkStream) 110.dp else 60.dp)
                             .clip(RoundedCornerShape(8.dp))
                             .background(DarkSurface)
                             .border(
@@ -116,6 +121,7 @@ fun PlaylistFilmstrip(
                                 color = if (isSelected) AccentBlue else DarkBorder,
                                 shape = RoundedCornerShape(8.dp)
                             )
+                            .focusable()
                             .clickable { onSelectIndex(index) }
                     ) {
                         when (item.mediaType) {
@@ -166,6 +172,22 @@ fun PlaylistFilmstrip(
                                     )
                                 }
                             }
+                        }
+
+                        if (isNetworkStream && item.name.isNotBlank()) {
+                            Text(
+                                text = item.name,
+                                color = Color.White,
+                                fontSize = 10.sp,
+                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                                maxLines = 1,
+                                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                                modifier = Modifier
+                                    .align(Alignment.BottomCenter)
+                                    .fillMaxWidth()
+                                    .background(OverlayDark)
+                                    .padding(horizontal = 4.dp, vertical = 2.dp)
+                            )
                         }
                     }
                 }

@@ -1,9 +1,9 @@
 {
-  "version": "1.3.5",
-  "tag_name": "v1.3.5",
-  "release_name": "Media Viewer v1.3.5",
-  "changelog": "• Dahili Kullanım Kılavuzu & Yardım (F1) ve README güncellendi: Canlı ağ akışları (RTSP/M3U), yayın kaydı (Ctrl+R), çalışma modları (Basit/Gelişmiş) ve tüm yeni kısayollar kılavuza ve SSS bölümüne eklendi",
-  "download_apk_url": "https://github.com/edizdar/MediaViewer/releases/download/v1.3.5/MediaViewer.apk",
-  "download_exe_url": "https://github.com/edizdar/MediaViewer/releases/download/v1.3.5/MediaViewer_v1.3.5.exe",
-  "release_page_url": "https://github.com/edizdar/MediaViewer/releases/tag/v1.3.5"
+  "version": "1.3.6",
+  "tag_name": "v1.3.6",
+  "release_name": "Media Viewer v1.3.6",
+  "changelog": "• Android TV & Box tam uyumluluğu: Şifresiz HTTP IPTV akış desteği (cleartext traffic), Leanback TV başlatıcı, TV kumandası (D-Pad ve Medya tuşları) ile tam gezinme\n• Ağ Akışı Aç diyaloguna tek tıkla 'Panodan Yapıştır' butonu eklendi\n• M3U IPTV linkleri otomatik ayrıştırılarak oynatma listesine dönüştürülüyor ve kanal isimleri gösteriliyor\n• Yayın kopmalarında otomatik yeniden bağlanma ve kurtarma kontrolleri eklendi\n• Otomatik derleme betikleri (build.bat / build_app.py) ve sürüm arşivleme sistemi kuruldu",
+  "download_apk_url": "https://github.com/edizdar/MediaViewer/releases/download/v1.3.6/MediaViewer.apk",
+  "download_exe_url": "https://github.com/edizdar/MediaViewer/releases/download/v1.3.6/MediaViewer_v1.3.6.exe",
+  "release_page_url": "https://github.com/edizdar/MediaViewer/releases/tag/v1.3.6"
 }

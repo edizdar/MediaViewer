@@ -90,6 +90,18 @@ class MediaViewModel(
                 } catch (_: Exception) {}
             }
 
+            // Also check file content header for #EXTM3U or #EXTINF if still not recognized
+            if (!isM3u) {
+                try {
+                    context.contentResolver.openInputStream(uri)?.use { stream ->
+                        val firstLine = java.io.BufferedReader(java.io.InputStreamReader(stream)).readLine()?.trim() ?: ""
+                        if (firstLine.startsWith("#EXTM3U", ignoreCase = true) || firstLine.startsWith("#EXTINF", ignoreCase = true)) {
+                            isM3u = true
+                        }
+                    }
+                } catch (_: Exception) {}
+            }
+
             if (isM3u) {
                 val parsedItems = com.example.mediaviewer.util.M3uParser.parseFromUri(context, uri)
                 if (parsedItems.isNotEmpty()) {

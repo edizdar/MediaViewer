@@ -51,15 +51,38 @@ object M3uParser {
         val lines = mutableListOf<String>()
         try {
             if (uri.scheme == "http" || uri.scheme == "https") {
-                val conn = URL(uri.toString()).openConnection() as HttpURLConnection
-                conn.connectTimeout = 8000
-                conn.readTimeout = 8000
-                BufferedReader(InputStreamReader(conn.inputStream)).use { reader ->
-                    reader.lineSequence().forEach { lines.add(it) }
+                var currentUrl = uri.toString()
+                var redirects = 0
+                var stream: java.io.InputStream? = null
+                while (redirects < 5) {
+                    val conn = URL(currentUrl).openConnection() as HttpURLConnection
+                    conn.connectTimeout = 12000
+                    conn.readTimeout = 12000
+                    conn.setRequestProperty(
+                        "User-Agent",
+                        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36 MediaViewer/1.3.5"
+                    )
+                    conn.instanceFollowRedirects = true
+                    val code = conn.responseCode
+                    if (code == HttpURLConnection.HTTP_MOVED_PERM || code == HttpURLConnection.HTTP_MOVED_TEMP || code == 307 || code == 308) {
+                        val newUrl = conn.getHeaderField("Location")
+                        if (!newUrl.isNullOrBlank()) {
+                            currentUrl = newUrl
+                            redirects++
+                            continue
+                        }
+                    }
+                    stream = conn.inputStream
+                    break
+                }
+                stream?.use { s ->
+                    BufferedReader(InputStreamReader(s, Charsets.UTF_8)).use { reader ->
+                        reader.lineSequence().forEach { lines.add(it) }
+                    }
                 }
             } else {
                 context.contentResolver.openInputStream(uri)?.use { stream ->
-                    BufferedReader(InputStreamReader(stream)).use { reader ->
+                    BufferedReader(InputStreamReader(stream, Charsets.UTF_8)).use { reader ->
                         reader.lineSequence().forEach { lines.add(it) }
                     }
                 }
