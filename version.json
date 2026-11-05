@@ -2,7 +2,7 @@
   "version": "1.3.7",
   "tag_name": "v1.3.7",
   "release_name": "Media Viewer v1.3.7",
-  "changelog": "• Windows Media Foundation (WMF) yerel çözücü motoru varsayılan yapıldı; sistem kodekleri (K-Lite, LAV Filters vb.) ve D3D11 donanım uyumluluğu geri getirilerek MP4 ve AVI oynatımındaki siyah ekran (görüntü yok) sorunu çözüldü\n• Ana menüye 'Video Motoru' seçeneği eklendi: Windows Media Foundation veya FFmpeg motoru arasında tek tıkla geçiş yapabilme desteği sağlandı\n• Video pencere geçişleri ve yeniden boyutlandırma uyumu iyileştirildi",
+  "changelog": "• İki Kademeli Akıllı Video Çözücü: Öncelikle sistemde kurulu kodekler (Windows Media Foundation / K-Lite, LAV) denenir; sistemin açamadığı veya hata verdiği videolar otomatik olarak dahili FFmpeg motoruna devredilerek anında ve pürüzsüz oynatılır\n• MP4 ve AVI oynatımındaki siyah ekran (görüntü yok) sorunu çözüldü\n• Ana menüye 'Video Motoru' seçeneği eklendi: Windows Media Foundation veya FFmpeg motoru arasında tek tıkla geçiş desteği sağlandı\n• Video pencere geçişleri ve yeniden boyutlandırma uyumu iyileştirildi",
   "download_apk_url": "https://github.com/edizdar/MediaViewer/releases/download/v1.3.7/MediaViewer.apk",
   "download_exe_url": "https://github.com/edizdar/MediaViewer/releases/download/v1.3.7/MediaViewer_v1.3.7.exe",
   "release_page_url": "https://github.com/edizdar/MediaViewer/releases/tag/v1.3.7"

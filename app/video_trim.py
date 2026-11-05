@@ -204,12 +204,14 @@ class VideoTranscodeWorker(QThread):
         ffmpeg_exe: str,
         input_path: Path,
         output_path: Path,
+        preset: str = "veryfast",
         parent=None,
     ) -> None:
         super().__init__(parent)
         self._ffmpeg = ffmpeg_exe
         self._input = input_path
         self._output = output_path
+        self._preset = preset
 
     def run(self) -> None:
         startupinfo = None
@@ -227,7 +229,7 @@ class VideoTranscodeWorker(QThread):
             "-c:v",
             "libx264",
             "-preset",
-            "veryfast",
+            self._preset,
             "-crf",
             "22",
             "-pix_fmt",

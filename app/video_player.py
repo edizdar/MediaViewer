@@ -1227,7 +1227,19 @@ class VideoPlayer(QWidget):
         """Set friendly display name for current network stream."""
         self._stream_display_name = name
 
-    def load_video(self, path: str | Path) -> None:
+    @property
+    def display_file_name(self) -> str:
+        return getattr(self, "_display_file_name", "") or (self._current_path.name if self._current_path else "")
+
+    def show_osd(self, text: str, is_active: bool = True) -> None:
+        """Display an on-screen toast notification over the video view."""
+        self._video_view.show_osd(text, is_active)
+
+    def hide_codec_banner(self) -> None:
+        """Hide the floating codec / transcode notification banner."""
+        self._video_view.hide_codec_banner()
+
+    def load_video(self, path: str | Path, display_name: Optional[str] = None) -> None:
         if hasattr(self, "_stream_recorder") and self._stream_recorder.is_recording:
             self._stream_recorder.stop_recording()
 
@@ -1239,6 +1251,7 @@ class VideoPlayer(QWidget):
 
         if is_stream:
             self._current_path = Path(path_str.split("?")[0])
+            self._display_file_name = display_name or self._stream_display_name or self._current_path.name
             url = QUrl(path_str)
             self._record_btn.setVisible(True)
             self._record_btn.setText("🔴 Yayını Kaydet")
@@ -1246,6 +1259,7 @@ class VideoPlayer(QWidget):
             self._trim_btn.setVisible(False)
         else:
             self._current_path = Path(path).resolve()
+            self._display_file_name = display_name or self._current_path.name
             url = QUrl.fromLocalFile(str(self._current_path))
             self._record_btn.setVisible(False)
             self._trim_btn.setVisible(True)
