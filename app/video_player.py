@@ -161,129 +161,6 @@ class VideoAdjustmentOverlay(QGraphicsItem):
         painter.restore()
 
 
-class CodecWarningBanner(QFrame):
-    """Floating banner displayed when video frames cannot be decoded (e.g. missing HEVC/H.265 codec)."""
-
-    transcode_requested = Signal()
-
-    def __init__(self, parent=None) -> None:
-        super().__init__(parent)
-        self.setObjectName("codecWarningBanner")
-        self.hide()
-
-        self.setStyleSheet(
-            """
-            QFrame#codecWarningBanner {
-                background-color: rgba(24, 24, 37, 0.95);
-                border: 1.5px solid #f59e0b;
-                border-radius: 8px;
-            }
-            QLabel#bannerTitle {
-                color: #fbbf24;
-                font-weight: bold;
-                font-size: 13px;
-            }
-            QLabel#bannerText {
-                color: #cdd6f4;
-                font-size: 11px;
-                line-height: 1.4;
-            }
-            QPushButton#codecBtn {
-                background-color: #313244;
-                color: #cdd6f4;
-                border: 1px solid #45475a;
-                border-radius: 5px;
-                padding: 6px 14px;
-                font-size: 11px;
-                font-weight: 500;
-            }
-            QPushButton#codecBtn:hover {
-                background-color: #45475a;
-                color: #ffffff;
-                border-color: #f59e0b;
-            }
-            QPushButton#transcodeBtn {
-                background-color: #0078d4;
-                color: #ffffff;
-                border: none;
-                border-radius: 5px;
-                padding: 6px 14px;
-                font-size: 11px;
-                font-weight: bold;
-            }
-            QPushButton#transcodeBtn:hover {
-                background-color: #106ebe;
-            }
-            QPushButton#closeBannerBtn {
-                background: transparent;
-                color: #6c7086;
-                border: none;
-                font-size: 14px;
-                font-weight: bold;
-                padding: 2px 6px;
-            }
-            QPushButton#closeBannerBtn:hover {
-                color: #f38ba8;
-            }
-            """
-        )
-
-        layout = QVBoxLayout(self)
-        layout.setContentsMargins(14, 10, 14, 12)
-        layout.setSpacing(8)
-
-        # Header: Icon + Title + Close button
-        header = QHBoxLayout()
-        header.setSpacing(8)
-
-        self._title_label = QLabel("⚡ Görüntü Çözülemedi — Dahili Çözücü Hazır")
-        self._title_label.setObjectName("bannerTitle")
-        header.addWidget(self._title_label)
-        header.addStretch()
-
-        close_btn = QPushButton("✕")
-        close_btn.setObjectName("closeBannerBtn")
-        close_btn.setToolTip("Bildirimi Kapat")
-        close_btn.setCursor(Qt.CursorShape.PointingHandCursor)
-        close_btn.clicked.connect(self.hide)
-        header.addWidget(close_btn)
-        layout.addLayout(header)
-
-        # Body: Explanation
-        self._body_label = QLabel(
-            "Videonun sesi çalıyor ancak ekran kartınız bu video profilini doğrudan çizemedi.\n"
-            "Harici hiçbir program yüklemeden, dahili FFmpeg motorumuzla videoyu anında uyumlu MP4 yapabilirsiniz."
-        )
-        self._body_label.setObjectName("bannerText")
-        self._body_label.setWordWrap(True)
-        layout.addWidget(self._body_label)
-
-        # Actions row
-        btn_layout = QHBoxLayout()
-        btn_layout.setSpacing(10)
-
-        transcode_btn = QPushButton("⚡ Dahili FFmpeg ile Uyumlu Yap ve Oynat")
-        transcode_btn.setObjectName("transcodeBtn")
-        transcode_btn.setToolTip("Dahili FFmpeg motorumuzla videoyu standart H.264 formatına çevirip açar")
-        transcode_btn.setCursor(Qt.CursorShape.PointingHandCursor)
-        transcode_btn.clicked.connect(self.transcode_requested)
-        btn_layout.addWidget(transcode_btn)
-
-        btn_layout.addStretch()
-        layout.addLayout(btn_layout)
-
-    def show_banner(self, custom_msg: Optional[str] = None) -> None:
-        if custom_msg:
-            self._body_label.setText(custom_msg)
-        else:
-            self._body_label.setText(
-                "Videonun sesi çalıyor ancak ekran kartınız bu video profilini doğrudan çizemedi.\n"
-                "Harici hiçbir program yüklemeden, dahili FFmpeg motorumuzla videoyu anında uyumlu MP4 yapabilirsiniz."
-            )
-        self.show()
-        self.raise_()
-
-
 class VideoOSDToast(QLabel):
     """Temporary on-screen display toast (e.g. '✨ Akıllı İyileştirme: AÇIK')."""
 
@@ -333,7 +210,6 @@ class ZoomableVideoView(QGraphicsView):
     double_clicked = Signal()
     zoom_changed = Signal(float)
     crop_rect_changed = Signal(QRectF)
-    transcode_requested = Signal()
     native_size_ready = Signal(QSizeF)
 
     ZOOM_MIN = 0.5
@@ -377,10 +253,6 @@ class ZoomableVideoView(QGraphicsView):
         # Fit video when its native size becomes known or when first frame arrives
         self._video_item.nativeSizeChanged.connect(self._on_native_size_changed)
         self._video_item.videoSink().videoFrameChanged.connect(self._on_video_frame_changed)
-
-        # Floating codec / black-screen notification banner
-        self._codec_banner = CodecWarningBanner(self.viewport())
-        self._codec_banner.transcode_requested.connect(self.transcode_requested)
 
         # OSD Toast for mode toggles
         self._osd_toast = VideoOSDToast(self.viewport())
@@ -447,14 +319,12 @@ class ZoomableVideoView(QGraphicsView):
             if self.viewport().width() > 10 and self.viewport().height() > 10:
                 self.fitInView(self._video_item, Qt.AspectRatioMode.KeepAspectRatio)
                 self.centerOn(self._video_item)
-            self.hide_codec_banner()
             self.native_size_ready.emit(size)
 
     def _on_video_frame_changed(self, frame: QVideoFrame) -> None:
         if frame.isValid():
             size = frame.size()
             if size.width() > 0 and size.height() > 0:
-                self.hide_codec_banner()
                 cur = self._video_item.size()
                 if (
                     cur.width() <= 0
@@ -578,27 +448,6 @@ class ZoomableVideoView(QGraphicsView):
             self.double_clicked.emit()
         super().mouseDoubleClickEvent(event)
 
-    @property
-    def is_codec_banner_visible(self) -> bool:
-        return hasattr(self, "_codec_banner") and not self._codec_banner.isHidden()
-
-    def show_codec_banner(self, custom_msg: Optional[str] = None) -> None:
-        if hasattr(self, "_codec_banner"):
-            self._codec_banner.show_banner(custom_msg)
-            self._update_banner_geometry()
-
-    def hide_codec_banner(self) -> None:
-        if hasattr(self, "_codec_banner"):
-            self._codec_banner.hide()
-
-    def _update_banner_geometry(self) -> None:
-        if hasattr(self, "_codec_banner") and not self._codec_banner.isHidden():
-            vw = self.viewport().width()
-            bw = min(max(320, vw - 40), 580)
-            bh = self._codec_banner.sizeHint().height()
-            bx = max(10, (vw - bw) // 2)
-            self._codec_banner.setGeometry(bx, 20, bw, bh)
-
     def set_smart_enhance(
         self, enabled: bool, adaptive_gamma: float = 0.0, adaptive_brightness: int = 0
     ) -> None:
@@ -611,7 +460,6 @@ class ZoomableVideoView(QGraphicsView):
 
     def resizeEvent(self, event) -> None:
         super().resizeEvent(event)
-        self._update_banner_geometry()
         if hasattr(self, "_osd_toast") and self._osd_toast.isVisible():
             x = (self.viewport().width() - self._osd_toast.width()) // 2
             self._osd_toast.move(x, 26)
@@ -650,11 +498,6 @@ class VideoPlayer(QWidget):
         self._adaptive_gamma_boost: float = 0.0
         self._adaptive_brightness_boost: int = 0
         self._luminance_analyzed: bool = False
-
-        # Codec / black screen check timer
-        self._codec_check_timer = QTimer(self)
-        self._codec_check_timer.setSingleShot(True)
-        self._codec_check_timer.timeout.connect(self._check_codec_status)
 
         # ── Media components ──
         self._player = QMediaPlayer(self)
@@ -875,8 +718,7 @@ class VideoPlayer(QWidget):
             self._on_first_video_frame
         )
 
-        # Transcode & context menu
-        self._video_view.transcode_requested.connect(self._on_transcode_requested)
+        # Context menu
         self._video_view.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
         self._video_view.customContextMenuRequested.connect(self._show_video_context_menu)
 
@@ -889,15 +731,11 @@ class VideoPlayer(QWidget):
     def _on_native_size_ready(self, size: QSizeF) -> None:
         if size.isValid() and size.width() > 0:
             self._has_video_frame = True
-            self._codec_check_timer.stop()
-            self._video_view.hide_codec_banner()
 
     def _on_first_video_frame(self, frame: QVideoFrame) -> None:
         if frame.isValid() and frame.size().width() > 0:
             self._current_frame = frame
             self._has_video_frame = True
-            self._codec_check_timer.stop()
-            self._video_view.hide_codec_banner()
             self._attach_audio()
             self._analyze_video_luminance(frame)
 
@@ -975,37 +813,9 @@ class VideoPlayer(QWidget):
         except Exception:
             pass
 
-    def _on_transcode_requested(self) -> None:
-        if self._current_path:
-            self.transcode_requested.emit(self._current_path)
-
     def _on_enhance_save_requested(self) -> None:
         if self._current_path:
             self.enhance_save_requested.emit(self._current_path)
-
-    def _check_codec_status(self) -> None:
-        if not self._current_path or not self._player.hasVideo():
-            return
-        if self._has_video_frame:
-            return
-
-        item_size = self._video_view.video_item.size()
-        native_size = self._video_view.video_item.nativeSize()
-        has_dimensions = (
-            (item_size.isValid() and item_size.width() > 0)
-            or (native_size.isValid() and native_size.width() > 0)
-        )
-        if has_dimensions:
-            self._has_video_frame = True
-            self._video_view.hide_codec_banner()
-            return
-
-        # Genuine black screen: has video track, playing for > 4.5s, but 0 frames and 0 dimensions
-        if (
-            self._player.playbackState() == QMediaPlayer.PlaybackState.PlayingState
-            and self._player.position() > 4500
-        ):
-            self._video_view.show_codec_banner()
 
     def _show_video_context_menu(self, pos: QPoint) -> None:
         menu = QMenu(self)
@@ -1037,9 +847,6 @@ class VideoPlayer(QWidget):
         enhance_save_act.triggered.connect(self._on_enhance_save_requested)
 
         menu.addSeparator()
-
-        transcode_act = menu.addAction("🔄 Uyumlu MP4 Formatına Dönüştür...")
-        transcode_act.triggered.connect(self._on_transcode_requested)
 
         menu.addSeparator()
 
@@ -1235,10 +1042,6 @@ class VideoPlayer(QWidget):
         """Display an on-screen toast notification over the video view."""
         self._video_view.show_osd(text, is_active)
 
-    def hide_codec_banner(self) -> None:
-        """Hide the floating codec / transcode notification banner."""
-        self._video_view.hide_codec_banner()
-
     def load_video(self, path: str | Path, display_name: Optional[str] = None) -> None:
         if hasattr(self, "_stream_recorder") and self._stream_recorder.is_recording:
             self._stream_recorder.stop_recording()
@@ -1268,11 +1071,6 @@ class VideoPlayer(QWidget):
         self._luminance_analyzed = False
         self._adaptive_gamma_boost = 0.0
         self._adaptive_brightness_boost = 0
-        self._video_view.hide_codec_banner()
-        if not is_stream:
-            self._codec_check_timer.start(5000)
-        else:
-            self._codec_check_timer.stop()
 
         if self._smart_enhance_active:
             self._video_view.set_smart_enhance(True)
@@ -1324,10 +1122,8 @@ class VideoPlayer(QWidget):
         self._is_network_stream = False
         self._stream_raw_url = ""
         self._record_btn.setVisible(False)
-        self._codec_check_timer.stop()
         self._has_video_frame = False
         self._luminance_analyzed = False
-        self._video_view.hide_codec_banner()
         self._player.stop()
         self._player.setSource(QUrl())
         self._current_path = None
@@ -1429,25 +1225,6 @@ class VideoPlayer(QWidget):
         if self._is_previewing_trim and position >= self._preview_end_ms:
             self._player.pause()
             self._is_previewing_trim = False
-
-        # Detect black screen (audio playing for > 5.0s with no video frame decoded)
-        if (
-            position > 5000
-            and self._player.hasVideo()
-            and not self._has_video_frame
-            and not self._video_view.is_codec_banner_visible
-        ):
-            item_size = self._video_view.video_item.size()
-            native_size = self._video_view.video_item.nativeSize()
-            has_dimensions = (
-                (item_size.isValid() and item_size.width() > 0)
-                or (native_size.isValid() and native_size.width() > 0)
-            )
-            if not has_dimensions:
-                self._video_view.show_codec_banner()
-            else:
-                self._has_video_frame = True
-                self._video_view.hide_codec_banner()
 
         self._trim_panel.update_state(position, duration)
 

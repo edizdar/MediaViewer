@@ -48,7 +48,6 @@ class TopToolbar(QWidget):
     language_selected = Signal(str)
     mode_toggled = Signal()
     mode_selected = Signal(str)
-    video_backend_selected = Signal(str)
     check_updates_clicked = Signal()
     about_clicked = Signal()
 
@@ -207,30 +206,9 @@ class TopToolbar(QWidget):
         en_act.triggered.connect(lambda: self.language_selected.emit("en"))
         lang_group.addAction(en_act)
 
-        # 4. Video Engine Submenu
-        from PySide6.QtCore import QSettings
-        _s = QSettings("MediaViewer", "MediaViewer")
-        current_backend = str(_s.value("video_backend", "windows"))
-
-        backend_menu = menu.addMenu("🎬  " + ("Video Motoru (Çözücü)" if is_tr else "Video Engine (Decoder)"))
-        backend_group = QActionGroup(self)
-        backend_group.setExclusive(True)
-
-        wmf_act = backend_menu.addAction("🪟 " + ("Windows Media Foundation (Önerilen — Sistem Kodekleri)" if is_tr else "Windows Media Foundation (Recommended)"))
-        wmf_act.setCheckable(True)
-        wmf_act.setChecked(current_backend == "windows")
-        wmf_act.triggered.connect(lambda: self.video_backend_selected.emit("windows"))
-        backend_group.addAction(wmf_act)
-
-        ff_act = backend_menu.addAction("⚡ " + ("FFmpeg Motoru (Dahili)" if is_tr else "FFmpeg Engine (Internal)"))
-        ff_act.setCheckable(True)
-        ff_act.setChecked(current_backend == "ffmpeg")
-        ff_act.triggered.connect(lambda: self.video_backend_selected.emit("ffmpeg"))
-        backend_group.addAction(ff_act)
-
         menu.addSeparator()
 
-        # 5. Updates, Help, About
+        # 4. Updates, Help, About
         update_act = menu.addAction("🔄  " + ("Güncellemeleri Denetle..." if is_tr else "Check for Updates..."))
         update_act.triggered.connect(self.check_updates_clicked.emit)
 

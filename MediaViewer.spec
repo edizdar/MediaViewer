@@ -6,22 +6,14 @@ from PyInstaller.utils.hooks import collect_data_files
 sys.path.insert(0, str(Path('.').resolve()))
 from app import __version__
 
-import imageio_ffmpeg
-ffmpeg_exe = imageio_ffmpeg.get_ffmpeg_exe()
-
-ffmpeg_datas = collect_data_files('imageio_ffmpeg')
-all_datas = ffmpeg_datas + [
-    (ffmpeg_exe, '.'),
-    (ffmpeg_exe, 'imageio_ffmpeg/binaries'),
-    ('assets', 'assets'),
-]
+all_datas = [('assets', 'assets')]
 
 a = Analysis(
     ['main.py'],
     pathex=[],
     binaries=[],
     datas=all_datas,
-    hiddenimports=['PySide6.QtMultimedia', 'PySide6.QtMultimediaWidgets', 'numpy', 'imageio_ffmpeg', 'cv2', 'app.stream_recorder'],
+    hiddenimports=['PySide6.QtMultimedia', 'PySide6.QtMultimediaWidgets', 'numpy', 'cv2', 'app.stream_recorder'],
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],

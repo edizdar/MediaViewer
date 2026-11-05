@@ -9,23 +9,11 @@ import os
 import sys
 from pathlib import Path
 
-# Select Qt Multimedia backend:
-# On Windows, default to Windows Media Foundation ("windows") for 100% native compatibility
-# with system codecs (K-Lite Codec Pack, LAV Filters, Microsoft MFTs), hardware acceleration,
-# and smooth, glitch-free playback of MP4, AVI, MKV, WMV, MOV without D3D11VA mapping black-screen issues.
-# Users can also switch to FFmpeg from the main menu if desired.
-if sys.platform == "win32":
-    try:
-        from PySide6.QtCore import QSettings
-        _s = QSettings("MediaViewer", "MediaViewer")
-        _saved_backend = _s.value("video_backend", "windows")
-        if "QT_MEDIA_BACKEND" not in os.environ:
-            os.environ["QT_MEDIA_BACKEND"] = str(_saved_backend)
-        if os.environ.get("QT_MEDIA_BACKEND") == "ffmpeg":
-            os.environ.setdefault("QT_FFMPEG_DECODING_HW_DEVICE_TYPES", "dxva2,d3d11va,none")
-    except Exception:
-        if "QT_MEDIA_BACKEND" not in os.environ:
-            os.environ["QT_MEDIA_BACKEND"] = "windows"
+# Configure Qt Multimedia FFmpeg backend (exact v1.1.0 configuration):
+# Directly decodes all modern formats (HEVC/H.265, H.264, VP9, AV1, MKV, MP4, AVI, MOV)
+# with hardware acceleration (D3D11VA, DXVA2) and seamless CPU fallback ('none').
+os.environ["QT_MEDIA_BACKEND"] = "ffmpeg"
+os.environ["QT_FFMPEG_DECODING_HW_DEVICE_TYPES"] = "d3d11va,dxva2,none"
 
 # Windows Taskbar AppUserModelID: Ensures taskbar displays application logo instead of generic window icon
 if sys.platform == "win32":
