@@ -21,6 +21,6 @@ start explorer.exe
 echo.
 echo [TAMAMLANDI] Tum eski "Birlikte Ac" kayitlari temizlendi!
 echo Artik videoya sag tiklayip "Birlikte Ac -> Baska bir uygulama sec"
-echo diyerek yeni MediaViewer_v1.3.7.exe dosyasini secebilirsiniz.
+echo diyerek yeni MediaViewer.exe (veya MediaViewer_v1.3.8.exe) dosyasini secebilirsiniz.
 echo.
 pause
