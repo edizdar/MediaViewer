@@ -217,6 +217,7 @@ class MainWindow(QMainWindow):
         self._top_toolbar.mode_toggled.connect(self._toggle_mode)
         self._top_toolbar.mode_selected.connect(self.set_mode)
         self._top_toolbar.check_updates_clicked.connect(self._manual_check_for_updates)
+        self._top_toolbar.video_backend_selected.connect(self._on_video_backend_changed)
         self._top_toolbar.about_clicked.connect(self._show_about_dialog)
 
         # Bottom toolbar
@@ -828,6 +829,40 @@ class MainWindow(QMainWindow):
         self._bottom_toolbar.retranslate_ui()
         self._retranslate_ui()
         self._show_toast(loc_mgr.get_toast_message())
+
+    def _on_video_backend_changed(self, new_backend: str) -> None:
+        """Switch video player backend (windows vs ffmpeg) and offer restart."""
+        from PySide6.QtWidgets import QMessageBox
+        is_tr = get_localization().current_language == "tr"
+        backend_name = "Windows Media Foundation" if new_backend == "windows" else "FFmpeg"
+
+        self._settings.setValue("video_backend", new_backend)
+
+        title = "Video Motoru Değiştirildi" if is_tr else "Video Engine Changed"
+        msg = (
+            f"Video çözücü motoru '{backend_name}' olarak ayarlandı.\n\n"
+            "Değişikliğin tam olarak geçerli olabilmesi için uygulamanın yeniden başlatılması gerekir.\n"
+            "Uygulamayı şimdi yeniden başlatmak istiyor musunuz?"
+            if is_tr else
+            f"Video decoding engine set to '{backend_name}'.\n\n"
+            "The application must be restarted for the change to take full effect.\n"
+            "Would you like to restart now?"
+        )
+        reply = QMessageBox.question(
+            self,
+            title,
+            msg,
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.Yes,
+        )
+        if reply == QMessageBox.StandardButton.Yes:
+            self._restart_application()
+
+    def _restart_application(self) -> None:
+        """Restart application process cleanly."""
+        import subprocess
+        QApplication.quit()
+        subprocess.Popen([sys.executable] + sys.argv[1:])
 
     def _manual_check_for_updates(self) -> None:
         """Trigger an on-demand update check and notify the user."""

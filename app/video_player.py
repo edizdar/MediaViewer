@@ -407,14 +407,22 @@ class ZoomableVideoView(QGraphicsView):
         self.resetTransform()
         self._zoom = 1.0
         size = self._video_item.nativeSize()
-        if size.isValid() and size.width() > 0 and size.height() > 0:
+        if not (size.isValid() and size.width() > 0 and size.height() > 0):
+            size = self._video_item.size()
+        if size.isValid() and size.width() > 0 and size.height() > 0 and size != QSizeF(320, 240):
             self._video_item.setSize(size)
             self._scene.setSceneRect(0, 0, size.width(), size.height())
-            self.fitInView(self._video_item, Qt.AspectRatioMode.KeepAspectRatio)
-            self.centerOn(self._video_item)
+            if self.viewport().width() > 10 and self.viewport().height() > 10:
+                self.fitInView(self._video_item, Qt.AspectRatioMode.KeepAspectRatio)
+                self.centerOn(self._video_item)
             self._overlay.prepareGeometryChange()
             self._overlay.update()
         self.zoom_changed.emit(self._zoom)
+
+    def showEvent(self, event) -> None:
+        super().showEvent(event)
+        if abs(self._zoom - 1.0) < 0.02:
+            QTimer.singleShot(50, self.fit_video)
 
     # ── Pan with keyboard ───────────────────────────────────────────────
 
@@ -436,8 +444,9 @@ class ZoomableVideoView(QGraphicsView):
         if size.isValid() and size.width() > 0 and size.height() > 0:
             self._video_item.setSize(size)
             self._scene.setSceneRect(0, 0, size.width(), size.height())
-            self.fitInView(self._video_item, Qt.AspectRatioMode.KeepAspectRatio)
-            self.centerOn(self._video_item)
+            if self.viewport().width() > 10 and self.viewport().height() > 10:
+                self.fitInView(self._video_item, Qt.AspectRatioMode.KeepAspectRatio)
+                self.centerOn(self._video_item)
             self.hide_codec_banner()
             self.native_size_ready.emit(size)
 
@@ -456,8 +465,9 @@ class ZoomableVideoView(QGraphicsView):
                     fsize = QSizeF(size.width(), size.height())
                     self._video_item.setSize(fsize)
                     self._scene.setSceneRect(0, 0, fsize.width(), fsize.height())
-                    self.fitInView(self._video_item, Qt.AspectRatioMode.KeepAspectRatio)
-                    self.centerOn(self._video_item)
+                    if self.viewport().width() > 10 and self.viewport().height() > 10:
+                        self.fitInView(self._video_item, Qt.AspectRatioMode.KeepAspectRatio)
+                        self.centerOn(self._video_item)
 
     def wheelEvent(self, event: QWheelEvent) -> None:
         delta = event.angleDelta().y()
