@@ -693,6 +693,9 @@ class MainWindow(QMainWindow):
         from app.video_trim import get_ffmpeg_executable, VideoTranscodeWorker
         ffmpeg_exe = get_ffmpeg_executable()
         if not ffmpeg_exe:
+            self._video_player.show_codec_banner(
+                "Bu video sistem çözücüsü tarafından desteklenmiyor ve dahili FFmpeg bileşeni bulunamadı."
+            )
             return
 
         import hashlib, tempfile
@@ -711,16 +714,18 @@ class MainWindow(QMainWindow):
         cache_key = hashlib.md5(key_raw.encode("utf-8")).hexdigest()[:12]
         cache_file = cache_dir / f"{video_path.stem}_{cache_key}.mp4"
 
+        # Hide any banner while auto-fallback takes over
+        self._video_player.hide_codec_banner()
+
         # If already cached, play immediately
         if cache_file.is_file() and cache_file.stat().st_size > 1024:
-            self._video_player.hide_codec_banner()
             self._video_player.show_osd("⚡ Dahili FFmpeg ile Açıldı", True)
             self._video_player.load_video(cache_file, display_name=video_path.name)
             self.setWindowTitle(f"{video_path.name} — {APP_TITLE}")
             return
 
         # Show gentle non-blocking OSD toast
-        self._video_player.show_osd("⚡ Sistem kodeki yetersiz → Dahili FFmpeg hazırlanıyor...", True)
+        self._video_player.show_osd("⚡ Dahili FFmpeg ile hazırlanıyor...", True)
         self._last_failed_auto_fallback = str(video_path)
 
         # Cancel any previous auto-fallback worker
@@ -737,13 +742,16 @@ class MainWindow(QMainWindow):
         )
 
         def on_finished(success: bool, msg: str, final_path: str):
-            if success and cache_file.is_file():
+            if success and cache_file.is_file() and cache_file.stat().st_size > 1024:
                 self._video_player.hide_codec_banner()
                 self._video_player.show_osd("▶ Dahili FFmpeg ile Oynatılıyor", True)
                 self._video_player.load_video(cache_file, display_name=video_path.name)
                 self.setWindowTitle(f"{video_path.name} — {APP_TITLE}")
             else:
-                self._video_player.show_osd("⚠️ Dahili çözücü de bu dosyayı açamadı", False)
+                self._video_player.show_codec_banner(
+                    f"Video oynatılırken hata oluştu:\n{msg}\n"
+                    "Bu dosya ne sistem kodekleri ne de dahili FFmpeg motoru ile çözülemedi."
+                )
 
         self._auto_fallback_worker.finished.connect(on_finished)
         self._auto_fallback_worker.start()

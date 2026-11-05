@@ -1544,8 +1544,4 @@ class VideoPlayer(QWidget):
     @Slot(QMediaPlayer.Error, str)
     def _on_player_error(self, error: QMediaPlayer.Error, error_string: str) -> None:
         if error != QMediaPlayer.Error.NoError:
-            self._video_view.show_codec_banner(
-                f"Video oynatılırken hata oluştu ({error.name}):\n{error_string}\n"
-                "Bu video için gerekli çözücü sistemde bulunamadı."
-            )
             self.playback_error.emit(f"{error_string} (Hata Kodu: {error.name})")

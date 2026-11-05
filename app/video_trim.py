@@ -22,7 +22,37 @@ from PySide6.QtWidgets import (
 
 
 def get_ffmpeg_executable() -> Optional[str]:
-    """Find a usable ffmpeg executable, trying imageio_ffmpeg first, then PATH."""
+    """Find a usable ffmpeg executable, checking PyInstaller bundled path, next to exe, imageio_ffmpeg, and PATH."""
+    import sys
+
+    # 1. PyInstaller bundled unpacked directory (_MEIPASS)
+    if hasattr(sys, "_MEIPASS"):
+        meipass = Path(sys._MEIPASS)
+        for cand in (
+            meipass / "ffmpeg.exe",
+            meipass / "ffmpeg-win-x86_64-v7.1.exe",
+            meipass / "imageio_ffmpeg" / "binaries" / "ffmpeg-win-x86_64-v7.1.exe",
+        ):
+            if cand.is_file():
+                return str(cand)
+        matches = list(meipass.glob("**/ffmpeg*.exe"))
+        if matches and matches[0].is_file():
+            return str(matches[0])
+
+    # 2. Next to running executable or script
+    base_dir = Path(sys.executable).parent if getattr(sys, "frozen", False) else Path(__file__).resolve().parent.parent
+    for cand in (
+        base_dir / "ffmpeg.exe",
+        base_dir / "ffmpeg-win-x86_64-v7.1.exe",
+        base_dir / "imageio_ffmpeg" / "binaries" / "ffmpeg-win-x86_64-v7.1.exe",
+    ):
+        if cand.is_file():
+            return str(cand)
+    matches = list(base_dir.glob("**/ffmpeg*.exe"))
+    if matches and matches[0].is_file():
+        return str(matches[0])
+
+    # 3. imageio_ffmpeg library
     try:
         import imageio_ffmpeg
         exe = imageio_ffmpeg.get_ffmpeg_exe()
@@ -31,6 +61,7 @@ def get_ffmpeg_executable() -> Optional[str]:
     except Exception:
         pass
 
+    # 4. System PATH
     system_ffmpeg = shutil.which("ffmpeg")
     if system_ffmpeg:
         return system_ffmpeg
@@ -224,6 +255,8 @@ class VideoTranscodeWorker(QThread):
         cmd = [
             self._ffmpeg,
             "-y",
+            "-threads",
+            "0",
             "-i",
             str(self._input),
             "-c:v",
@@ -238,6 +271,8 @@ class VideoTranscodeWorker(QThread):
             "aac",
             "-b:a",
             "192k",
+            "-movflags",
+            "+faststart",
             str(self._output),
         ]
 

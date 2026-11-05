@@ -6,8 +6,15 @@ from PyInstaller.utils.hooks import collect_data_files
 sys.path.insert(0, str(Path('.').resolve()))
 from app import __version__
 
+import imageio_ffmpeg
+ffmpeg_exe = imageio_ffmpeg.get_ffmpeg_exe()
+
 ffmpeg_datas = collect_data_files('imageio_ffmpeg')
-all_datas = ffmpeg_datas + [('assets', 'assets')]
+all_datas = ffmpeg_datas + [
+    (ffmpeg_exe, '.'),
+    (ffmpeg_exe, 'imageio_ffmpeg/binaries'),
+    ('assets', 'assets'),
+]
 
 a = Analysis(
     ['main.py'],
