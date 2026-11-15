@@ -1,0 +1,497 @@
+package com.eroldizdar.mediaviewer.ui.dialogs
+
+import android.content.Context
+import android.widget.Toast
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.focusable
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Bookmark
+import androidx.compose.material.icons.filled.BookmarkBorder
+import androidx.compose.material.icons.filled.ContentPaste
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.LiveTv
+import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Sensors
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Checkbox
+import androidx.compose.material3.CheckboxDefaults
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.material3.RadioButton
+import androidx.compose.material3.RadioButtonDefaults
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Tab
+import androidx.compose.material3.TabRow
+import androidx.compose.material3.TabRowDefaults
+import androidx.compose.material3.TabRowDefaults.tabIndicatorOffset
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
+import kotlinx.coroutines.launch
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import com.eroldizdar.mediaviewer.data.SavedStream
+import com.eroldizdar.mediaviewer.data.StreamManager
+import com.eroldizdar.mediaviewer.model.MediaItem
+import com.eroldizdar.mediaviewer.ui.theme.AccentBlue
+import com.eroldizdar.mediaviewer.ui.theme.AccentCyan
+import com.eroldizdar.mediaviewer.ui.theme.AccentRed
+import com.eroldizdar.mediaviewer.ui.theme.DarkSurface
+import com.eroldizdar.mediaviewer.ui.theme.TextMuted
+import com.eroldizdar.mediaviewer.ui.theme.TextPrimary
+import com.eroldizdar.mediaviewer.ui.theme.TextSecondary
+
+@Composable
+fun NetworkStreamDialog(
+    onDismiss: () -> Unit,
+    onPlayStream: (MediaItem) -> Unit,
+    onPlayPlaylist: (List<MediaItem>) -> Unit = {}
+) {
+    val context = LocalContext.current
+    val coroutineScope = rememberCoroutineScope()
+    var selectedTabIndex by remember { mutableIntStateOf(0) } // 0: Yeni Akış Aç, 1: Kayıtlı Akışlar
+
+    var urlText by remember { mutableStateOf("") }
+    var nameText by remember { mutableStateOf("") }
+    var saveStreamChecked by remember { mutableStateOf(true) }
+    var bufferMode by remember { mutableStateOf(StreamManager.getBufferMode(context)) }
+    var isLoadingM3u by remember { mutableStateOf(false) }
+
+    var savedStreams by remember { mutableStateOf(StreamManager.getSavedStreams(context)) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        containerColor = DarkSurface,
+        shape = RoundedCornerShape(20.dp),
+        title = {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.LiveTv,
+                    contentDescription = null,
+                    tint = AccentCyan,
+                    modifier = Modifier.size(26.dp)
+                )
+                Text(
+                    text = "Ağ Akışı / Canlı Yayın Aç",
+                    style = MaterialTheme.typography.titleLarge.copy(
+                        fontWeight = FontWeight.Bold,
+                        color = TextPrimary
+                    )
+                )
+            }
+        },
+        text = {
+            Column(modifier = Modifier.fillMaxWidth()) {
+                TabRow(
+                    selectedTabIndex = selectedTabIndex,
+                    containerColor = Color.Transparent,
+                    contentColor = AccentBlue,
+                    indicator = { tabPositions ->
+                        TabRowDefaults.SecondaryIndicator(
+                            Modifier.tabIndicatorOffset(tabPositions[selectedTabIndex]),
+                            color = AccentBlue
+                        )
+                    }
+                ) {
+                    Tab(
+                        selected = selectedTabIndex == 0,
+                        onClick = { selectedTabIndex = 0 },
+                        text = {
+                            Text(
+                                "Adres Gir (URL)",
+                                fontSize = 13.sp,
+                                fontWeight = if (selectedTabIndex == 0) FontWeight.Bold else FontWeight.Normal,
+                                color = if (selectedTabIndex == 0) AccentBlue else TextSecondary
+                            )
+                        }
+                    )
+                    Tab(
+                        selected = selectedTabIndex == 1,
+                        onClick = { selectedTabIndex = 1 },
+                        text = {
+                            Text(
+                                "Kayıtlılar (${savedStreams.size})",
+                                fontSize = 13.sp,
+                                fontWeight = if (selectedTabIndex == 1) FontWeight.Bold else FontWeight.Normal,
+                                color = if (selectedTabIndex == 1) AccentBlue else TextSecondary
+                            )
+                        }
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(14.dp))
+
+                if (selectedTabIndex == 0) {
+                    // TAB 0: YENİ ADRES GİR
+                    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                        Text(
+                            text = "RTSP, HLS (.m3u8), IPTV (.m3u) veya HTTP video adresi yapıştırın:",
+                            fontSize = 12.sp,
+                            color = TextSecondary
+                        )
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            OutlinedTextField(
+                                value = urlText,
+                                onValueChange = { urlText = it },
+                                placeholder = { Text("rtsp://... veya https://.../stream.m3u8", fontSize = 12.sp, color = TextMuted) },
+                                modifier = Modifier.weight(1f),
+                                singleLine = true,
+                                colors = OutlinedTextFieldDefaults.colors(
+                                    focusedBorderColor = AccentBlue,
+                                    unfocusedBorderColor = Color(0xFF2E3846),
+                                    focusedTextColor = TextPrimary,
+                                    unfocusedTextColor = TextPrimary
+                                ),
+                                shape = RoundedCornerShape(10.dp)
+                            )
+
+                            OutlinedButton(
+                                onClick = {
+                                    try {
+                                        val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as? android.content.ClipboardManager
+                                        val clipData = clipboard?.primaryClip
+                                        if (clipData != null && clipData.itemCount > 0) {
+                                            val pasted = clipData.getItemAt(0)?.text?.toString()?.trim() ?: ""
+                                            if (pasted.isNotBlank()) {
+                                                urlText = pasted
+                                                if (nameText.isBlank()) {
+                                                    nameText = StreamManager.inferStreamName(pasted)
+                                                }
+                                                Toast.makeText(context, "Panodan yapıştırıldı", Toast.LENGTH_SHORT).show()
+                                            } else {
+                                                Toast.makeText(context, "Pano boş", Toast.LENGTH_SHORT).show()
+                                            }
+                                        } else {
+                                            Toast.makeText(context, "Pano boş", Toast.LENGTH_SHORT).show()
+                                        }
+                                    } catch (_: Exception) {
+                                        Toast.makeText(context, "Pano okunamadı", Toast.LENGTH_SHORT).show()
+                                    }
+                                },
+                                shape = RoundedCornerShape(10.dp),
+                                contentPadding = PaddingValues(horizontal = 10.dp, vertical = 12.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.ContentPaste,
+                                    contentDescription = "Panodan Yapıştır",
+                                    tint = AccentCyan,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text("Yapıştır", fontSize = 12.sp, color = TextPrimary)
+                            }
+                        }
+
+                        OutlinedTextField(
+                            value = nameText,
+                            onValueChange = { nameText = it },
+                            label = { Text("Akış Adı (İsteğe bağlı)", fontSize = 12.sp) },
+                            placeholder = { Text("Örn: Bahçe Kamerası, Canlı Haber", fontSize = 12.sp, color = TextMuted) },
+                            modifier = Modifier.fillMaxWidth(),
+                            singleLine = true,
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedBorderColor = AccentBlue,
+                                unfocusedBorderColor = Color(0xFF2E3846),
+                                focusedTextColor = TextPrimary,
+                                unfocusedTextColor = TextPrimary
+                            ),
+                            shape = RoundedCornerShape(10.dp)
+                        )
+
+                        // Tampon / Gecikme Modu
+                        Text(
+                            text = "Ağ Gecikmesi & Tampon Modu:",
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = AccentCyan
+                        )
+
+                        Card(
+                            colors = CardDefaults.cardColors(containerColor = Color(0xFF1E2230)),
+                            shape = RoundedCornerShape(10.dp),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Column(modifier = Modifier.padding(6.dp)) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clickable { bufferMode = "LOW_LATENCY" }
+                                ) {
+                                    RadioButton(
+                                        selected = bufferMode == "LOW_LATENCY",
+                                        onClick = { bufferMode = "LOW_LATENCY" },
+                                        colors = RadioButtonDefaults.colors(selectedColor = AccentBlue)
+                                    )
+                                    Column {
+                                        Text("⚡ Düşük Gecikme (IP Kamera / Canlı CCTV)", fontSize = 12.sp, color = TextPrimary)
+                                        Text("Gecikmeyi minimumda tutar (0.5s tampon)", fontSize = 10.sp, color = TextSecondary)
+                                    }
+                                }
+
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clickable { bufferMode = "BALANCED" }
+                                ) {
+                                    RadioButton(
+                                        selected = bufferMode == "BALANCED",
+                                        onClick = { bufferMode = "BALANCED" },
+                                        colors = RadioButtonDefaults.colors(selectedColor = AccentBlue)
+                                    )
+                                    Column {
+                                        Text("🛡️ Dengeli & Kararlı (IPTV / HLS)", fontSize = 12.sp, color = TextPrimary)
+                                        Text("Ağ dalgalanmalarına karşı 15s önbellek", fontSize = 10.sp, color = TextSecondary)
+                                    }
+                                }
+                            }
+                        }
+
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.clickable { saveStreamChecked = !saveStreamChecked }
+                        ) {
+                            Checkbox(
+                                checked = saveStreamChecked,
+                                onCheckedChange = { saveStreamChecked = it },
+                                colors = CheckboxDefaults.colors(checkedColor = AccentBlue)
+                            )
+                            Text(
+                                text = "⭐ Bu akışı kayıtlılara ekle",
+                                fontSize = 12.sp,
+                                color = TextPrimary
+                            )
+                        }
+                    }
+                } else {
+                    // TAB 1: KAYITLI VE ÖRNEK AKIŞLAR
+                    LazyColumn(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(260.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        items(savedStreams, key = { it.id }) { stream ->
+                            Card(
+                                colors = CardDefaults.cardColors(containerColor = Color(0xFF1E2230)),
+                                shape = RoundedCornerShape(10.dp),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .focusable()
+                                    .clickable {
+                                        StreamManager.setBufferMode(context, stream.bufferMode)
+                                        onDismiss()
+                                        onPlayStream(stream.toMediaItem())
+                                    }
+                            ) {
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(10.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Text(
+                                            text = stream.name,
+                                            fontSize = 13.sp,
+                                            fontWeight = FontWeight.SemiBold,
+                                            color = TextPrimary,
+                                            maxLines = 1
+                                        )
+                                        Text(
+                                            text = "${stream.type} • ${if (stream.bufferMode == "LOW_LATENCY") "Düşük Gecikme" else "Kararlı Tampon"}",
+                                            fontSize = 11.sp,
+                                            color = AccentCyan
+                                        )
+                                        Text(
+                                            text = stream.url,
+                                            fontSize = 10.sp,
+                                            color = TextMuted,
+                                            maxLines = 1
+                                        )
+                                    }
+
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        IconButton(
+                                            onClick = {
+                                                StreamManager.setBufferMode(context, stream.bufferMode)
+                                                onDismiss()
+                                                onPlayStream(stream.toMediaItem())
+                                            }
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Default.PlayArrow,
+                                                contentDescription = "Oynat",
+                                                tint = AccentBlue
+                                            )
+                                        }
+
+                                        if (!stream.id.startsWith("sample_")) {
+                                            IconButton(
+                                                onClick = {
+                                                    StreamManager.deleteStream(context, stream.id)
+                                                    savedStreams = StreamManager.getSavedStreams(context)
+                                                }
+                                            ) {
+                                                Icon(
+                                                    imageVector = Icons.Default.Delete,
+                                                    contentDescription = "Sil",
+                                                    tint = AccentRed.copy(alpha = 0.7f),
+                                                    modifier = Modifier.size(18.dp)
+                                                )
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            if (selectedTabIndex == 0) {
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedButton(
+                        onClick = {
+                            val cleanUrl = urlText.trim()
+                            if (cleanUrl.isNotBlank()) {
+                                StreamManager.saveStream(context, nameText, cleanUrl, bufferMode = bufferMode)
+                                savedStreams = StreamManager.getSavedStreams(context)
+                                Toast.makeText(context, "Akış listeye kaydedildi", Toast.LENGTH_SHORT).show()
+                                selectedTabIndex = 1
+                            }
+                        },
+                        enabled = urlText.isNotBlank() && !isLoadingM3u,
+                        shape = RoundedCornerShape(10.dp)
+                    ) {
+                        Text("💾 Kaydet")
+                    }
+
+                    Button(
+                        onClick = {
+                            val cleanUrl = urlText.trim()
+                            if (cleanUrl.isNotBlank()) {
+                                StreamManager.setBufferMode(context, bufferMode)
+                                if (saveStreamChecked) {
+                                    StreamManager.saveStream(context, nameText, cleanUrl, bufferMode = bufferMode)
+                                }
+                                val streamItem = SavedStream(
+                                    id = System.currentTimeMillis().toString(),
+                                    name = nameText.ifBlank { StreamManager.inferStreamName(cleanUrl) },
+                                    url = cleanUrl,
+                                    bufferMode = bufferMode
+                                ).toMediaItem()
+
+                                val isM3uUrl = cleanUrl.endsWith(".m3u", ignoreCase = true) ||
+                                        cleanUrl.endsWith(".m3u8", ignoreCase = true) ||
+                                        cleanUrl.contains("type=m3u", ignoreCase = true) ||
+                                        cleanUrl.contains("output=m3u", ignoreCase = true) ||
+                                        cleanUrl.contains("/get.php", ignoreCase = true)
+
+                                if (isM3uUrl) {
+                                    coroutineScope.launch {
+                                        isLoadingM3u = true
+                                        try {
+                                            val parsed = com.eroldizdar.mediaviewer.util.M3uParser.parseFromUri(context, android.net.Uri.parse(cleanUrl))
+                                            isLoadingM3u = false
+                                            onDismiss()
+                                            if (parsed.isNotEmpty()) {
+                                                onPlayPlaylist(parsed)
+                                            } else {
+                                                onPlayStream(streamItem)
+                                            }
+                                        } catch (_: Exception) {
+                                            isLoadingM3u = false
+                                            onDismiss()
+                                            onPlayStream(streamItem)
+                                        }
+                                    }
+                                } else {
+                                    onDismiss()
+                                    onPlayStream(streamItem)
+                                }
+                            }
+                        },
+                        enabled = urlText.isNotBlank() && !isLoadingM3u,
+                        colors = ButtonDefaults.buttonColors(containerColor = AccentBlue),
+                        shape = RoundedCornerShape(10.dp)
+                    ) {
+                        if (isLoadingM3u) {
+                            CircularProgressIndicator(color = Color.White, modifier = Modifier.size(16.dp))
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text("Yükleniyor...")
+                        } else {
+                            Text("▶️ Oynat", fontWeight = FontWeight.Bold)
+                        }
+                    }
+                }
+            } else {
+                Button(
+                    onClick = {
+                        val firstStream = savedStreams.firstOrNull()
+                        if (firstStream != null) {
+                            StreamManager.setBufferMode(context, firstStream.bufferMode)
+                            onDismiss()
+                            onPlayStream(firstStream.toMediaItem())
+                        }
+                    },
+                    enabled = savedStreams.isNotEmpty(),
+                    colors = ButtonDefaults.buttonColors(containerColor = AccentBlue),
+                    shape = RoundedCornerShape(10.dp)
+                ) {
+                    Text("▶️ Oynat", fontWeight = FontWeight.Bold)
+                }
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Kapat", color = TextSecondary)
+            }
+        }
+    )
+}

@@ -5,20 +5,36 @@ plugins {
 }
 
 android {
-  namespace = "com.example.mediaviewer"
+  namespace = "com.eroldizdar.mediaviewer"
   compileSdk = 36
   defaultConfig {
-    applicationId = "com.example.mediaviewer"
+    applicationId = "com.eroldizdar.mediaviewer"
     minSdk = 24
     targetSdk = 36
     versionCode = 16
     versionName = "1.3.8"
   }
 
+  signingConfigs {
+    create("release") {
+      val keystoreFile = file("release.keystore")
+      if (keystoreFile.exists()) {
+        storeFile = keystoreFile
+        storePassword = "mediaviewer2026"
+        keyAlias = "mediaviewer"
+        keyPassword = "mediaviewer2026"
+      }
+    }
+  }
+
   buildTypes {
     release {
       isMinifyEnabled = false
       proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
+      val keystoreFile = file("release.keystore")
+      if (keystoreFile.exists()) {
+        signingConfig = signingConfigs.getByName("release")
+      }
     }
   }
   compileOptions {

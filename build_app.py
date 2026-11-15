@@ -54,7 +54,7 @@ def build_windows():
 
 def build_android():
     print("\n" + "=" * 60)
-    print(f"[ANDROID] MediaViewer v{__version__} APK derleniyor...")
+    print(f"[ANDROID] MediaViewer v{__version__} (AAB + APK) derleniyor...")
     print("=" * 60)
 
     android_dir = ROOT_DIR / "android"
@@ -73,33 +73,43 @@ def build_android():
             build_gradle.write_text(content_updated, encoding="utf-8")
             print(f"[BİLGİ] Android versionName '{__version__}' olarak güncellendi.")
 
-    cmd = ["cmd.exe", "/c", str(gradlew_bat), "assembleDebug"]
+    # Derle: Hem Play Store (.aab) hem de Doğrudan Yükleme (.apk) paketlerini üret
+    cmd = ["cmd.exe", "/c", str(gradlew_bat), "bundleRelease", "assembleRelease"]
     res = subprocess.run(cmd, cwd=str(android_dir))
     if res.returncode != 0:
         print("[HATA] Android derlemesi başarısız oldu!")
         return False
 
-    built_apk = android_dir / "app" / "build" / "outputs" / "apk" / "debug" / "app-debug.apk"
-    if not built_apk.exists():
-        print(f"[HATA] {built_apk} bulunamadı!")
-        return False
+    built_aab = android_dir / "app" / "build" / "outputs" / "bundle" / "release" / "app-release.aab"
+    built_apk = android_dir / "app" / "build" / "outputs" / "apk" / "release" / "app-release.apk"
 
-    # 1. Ana sabit isim: MediaViewer.apk
-    target_apk_fixed = ROOT_DIR / "MediaViewer.apk"
-    shutil.copy2(built_apk, target_apk_fixed)
+    versions_dir = ROOT_DIR / "versions"
+    versions_dir.mkdir(exist_ok=True)
 
-    # 2. Sürüm numaralı dosya: MediaViewer_vX.X.X.apk
-    target_apk_versioned = ROOT_DIR / f"MediaViewer_v{__version__}.apk"
-    shutil.copy2(built_apk, target_apk_versioned)
+    if built_aab.exists():
+        target_aab_fixed = ROOT_DIR / "MediaViewer.aab"
+        target_aab_versioned = ROOT_DIR / f"MediaViewer_v{__version__}.aab"
+        shutil.copy2(built_aab, target_aab_fixed)
+        shutil.copy2(built_aab, target_aab_versioned)
+        shutil.copy2(built_aab, versions_dir / f"MediaViewer_v{__version__}.aab")
+        aab_size_mb = target_aab_fixed.stat().st_size / (1024 * 1024)
+        print(f"\n[OK] Play Store Paketi (AAB) Hazır ({aab_size_mb:.2f} MB)")
+        print(f" -> {target_aab_fixed.name} (Google Play Console için)")
+        print(f" -> {target_aab_versioned.name}")
 
-    # 3. android/ klasörüne de kopya
-    shutil.copy2(built_apk, android_dir / f"MediaViewer_v{__version__}.apk")
-    shutil.copy2(built_apk, android_dir / "MediaViewer.apk")
+    if built_apk.exists():
+        target_apk_fixed = ROOT_DIR / "MediaViewer.apk"
+        target_apk_versioned = ROOT_DIR / f"MediaViewer_v{__version__}.apk"
+        shutil.copy2(built_apk, target_apk_fixed)
+        shutil.copy2(built_apk, target_apk_versioned)
+        shutil.copy2(built_apk, versions_dir / f"MediaViewer_v{__version__}.apk")
+        shutil.copy2(built_apk, android_dir / f"MediaViewer_v{__version__}.apk")
+        shutil.copy2(built_apk, android_dir / "MediaViewer.apk")
+        apk_size_mb = target_apk_fixed.stat().st_size / (1024 * 1024)
+        print(f"\n[OK] İmzalı APK Paketi Hazır ({apk_size_mb:.2f} MB)")
+        print(f" -> {target_apk_fixed.name} (Doğrudan Cihaza Kurulum için)")
+        print(f" -> {target_apk_versioned.name}")
 
-    size_mb = target_apk_fixed.stat().st_size / (1024 * 1024)
-    print(f"\n[OK] Android Derlemesi Tamamlandı ({size_mb:.2f} MB)")
-    print(f" -> {target_apk_fixed.name}")
-    print(f" -> {target_apk_versioned.name}")
     return True
 
 def main():
@@ -125,7 +135,9 @@ def main():
             print(f" - MediaViewer.exe")
             print(f" - MediaViewer_v{__version__}.exe")
         if do_android:
-            print(f" - MediaViewer.apk")
+            print(f" - MediaViewer.aab (Google Play Store)")
+            print(f" - MediaViewer.apk (Doğrudan Kurulum)")
+            print(f" - MediaViewer_v{__version__}.aab")
             print(f" - MediaViewer_v{__version__}.apk")
     else:
         print("BİR VEYA DAHA FAZLA DERLEME HATA VERDİ!")
