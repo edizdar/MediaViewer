@@ -9,8 +9,16 @@ import coil.decode.ImageDecoderDecoder
 import coil.decode.VideoFrameDecoder
 import coil.disk.DiskCache
 import coil.memory.MemoryCache
+import com.google.android.gms.ads.MobileAds
 
 class MediaViewerApp : Application(), ImageLoaderFactory {
+    override fun onCreate() {
+        super.onCreate()
+        try {
+            MobileAds.initialize(this) {}
+        } catch (_: Exception) {}
+    }
+
     override fun newImageLoader(): ImageLoader {
         return ImageLoader.Builder(this)
             .components {

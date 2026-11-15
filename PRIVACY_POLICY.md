@@ -13,10 +13,10 @@ Uygulama, yalnızca temel işlevlerini yerine getirebilmek için Android işleti
 * **Ses Dosyası Erişimi (`READ_MEDIA_AUDIO`):** Cihazınızdaki ses ve müzik dosyalarını oynatabilmeniz için kullanılır.
 * **İnternet Erişimi (`INTERNET`):** Yalnızca sizin tarafınızdan manuel olarak girilen canlı ağ akışlarını (RTSP IP kameraları, HLS/M3U8 yayınları) oynatmak ve uygulama güncellemelerini denetlemek amacıyla kullanılır. Arka planda herhangi bir veri aktarımı veya telemetri yapılmaz.
 
-### 3. Veri Toplama ve Paylaşım
-* Media Viewer'da **reklam yoktur**.
-* **Kullanıcı takip sistemleri (tracker), telemetri veya analitik araçları (Google Analytics, Firebase vb.) bulunmamaktadır**.
-* Cihaz kimliği, konum, rehber veya kişisel verileriniz asla toplanmaz.
+### 3. Reklamlar ve Üçüncü Taraf Hizmetleri (Google AdMob)
+* Uygulama, geliştirme ve sunucu maliyetlerini karşılamak amacıyla **Google AdMob** reklam ağını kullanmaktadır.
+* Google AdMob, kullanıcılara ilgi alanlarına uygun reklamlar sunabilmek amacıyla Google'ın kendi gizlilik politikası çerçevesinde anonim reklam kimliği (Advertising ID) ve temel cihaz verilerini kullanabilir. Google'ın verileri nasıl kullandığı hakkında detaylı bilgi için: [Google Gizlilik Politikası](https://policies.google.com/privacy).
+* Uygulama geliştiricisi olarak bizler sizin hiçbir kişisel bilginizi, dosyanızı, fotoğrafınızı veya konumunuzu toplamaz, saklamaz veya işlemez.
 * Uygulama içindeki tüm fotoğraf düzenleme, filtreleme ve kırpma işlemleri %100 çevrimdışı ve cihazınızın kendi işlemcisi üzerinde gerçekleşir.
 
 ### 4. İletişim
@@ -38,10 +38,11 @@ The App requests the following device permissions solely to provide its core fun
 * **Audio Access (`READ_MEDIA_AUDIO`):** Used strictly locally to play your audio recordings and music files.
 * **Internet Access (`INTERNET`):** Used exclusively when you choose to play a live network stream (such as RTSP camera feeds or M3U8 playlists) or when checking for app updates.
 
-### 3. Data Collection and Third-Party Services
-* **No Advertisements:** Media Viewer is completely ad-free.
-* **No Trackers or Analytics:** We do not include any tracking SDKs, analytics, or profiling libraries.
-* **100% On-Device:** All image enhancements, cropping, and adjustments are processed entirely on your device.
+### 3. Advertising and Third-Party Services (Google AdMob)
+* The App integrates **Google AdMob** to display banner advertisements.
+* Google AdMob may use device identifiers (such as the Google Advertising ID) and non-personal diagnostic data to serve ads in accordance with Google's Privacy Policy: [Google Privacy Policy](https://policies.google.com/privacy).
+* We, as the application developers, do NOT collect, store, or sell any personal data, media files, or location information.
+* All media editing, cropping, and adjustments are processed 100% locally on your device.
 
 ### 4. Contact
 If you have any questions regarding this Privacy Policy, please contact:

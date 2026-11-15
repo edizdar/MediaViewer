@@ -45,6 +45,7 @@ import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Security
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Videocam
+import com.eroldizdar.mediaviewer.ui.components.BannerAdView
 import com.eroldizdar.mediaviewer.ui.dialogs.NetworkStreamDialog
 import com.eroldizdar.mediaviewer.ui.dialogs.SettingsDialog
 import com.eroldizdar.mediaviewer.ui.theme.AccentCyan
@@ -314,6 +315,9 @@ fun GalleryScreen(
                     }
                 }
             )
+        },
+        bottomBar = {
+            BannerAdView()
         }
     ) { paddingValues ->
         Column(

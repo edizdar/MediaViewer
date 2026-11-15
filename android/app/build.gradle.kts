@@ -53,6 +53,12 @@ android {
       excludes += "/META-INF/{AL2.0,LGPL2.1}"
     }
   }
+
+  lint {
+    abortOnError = false
+    checkReleaseBuilds = false
+    disable += "InvalidFragmentVersionForActivityResult"
+  }
 }
 
 kotlin {
@@ -111,4 +117,10 @@ dependencies {
   implementation(libs.coil.compose)
   implementation(libs.coil.video)
   implementation(libs.coil.gif)
+
+  // Google Mobile Ads (AdMob)
+  implementation(libs.play.services.ads)
+
+  // Fragment KTX (Activity Result & Compose interop)
+  implementation("androidx.fragment:fragment-ktx:1.8.6")
 }

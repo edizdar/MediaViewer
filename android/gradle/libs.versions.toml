@@ -15,8 +15,10 @@ nav3Core = "1.0.1"
 lifecycleViewmodelNav3 = "2.10.0"
 media3 = "1.5.1"
 coil = "2.7.0"
+playServicesAds = "23.6.0"
 
 [libraries]
+play-services-ads = { module = "com.google.android.gms:play-services-ads", version.ref = "playServicesAds" }
 media3-exoplayer = { group = "androidx.media3", name = "media3-exoplayer", version.ref = "media3" }
 media3-exoplayer-hls = { group = "androidx.media3", name = "media3-exoplayer-hls", version.ref = "media3" }
 media3-exoplayer-rtsp = { group = "androidx.media3", name = "media3-exoplayer-rtsp", version.ref = "media3" }
