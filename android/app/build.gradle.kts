@@ -11,8 +11,8 @@ android {
     applicationId = "com.eroldizdar.mediaviewer"
     minSdk = 24
     targetSdk = 36
-    versionCode = 16
-    versionName = "1.3.8"
+    versionCode = 17
+    versionName = "1.3.9"
   }
 
   signingConfigs {
