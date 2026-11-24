@@ -5,7 +5,7 @@ from pathlib import Path
 from typing import Optional
 
 from PySide6.QtCore import Qt, Signal, QUrl, Slot, QSizeF, QPoint, QEvent, QTimer, QRectF
-from PySide6.QtGui import QMouseEvent, QWheelEvent, QPainter, QColor, QDesktopServices, QImage
+from PySide6.QtGui import QMouseEvent, QWheelEvent, QPainter, QColor, QDesktopServices, QImage, QCursor
 from PySide6.QtMultimedia import QMediaPlayer, QAudioOutput, QVideoFrame
 from PySide6.QtMultimediaWidgets import QGraphicsVideoItem
 from PySide6.QtWidgets import (
@@ -211,6 +211,7 @@ class ZoomableVideoView(QGraphicsView):
     zoom_changed = Signal(float)
     crop_rect_changed = Signal(QRectF)
     native_size_ready = Signal(QSizeF)
+    mouse_moved = Signal()
 
     ZOOM_MIN = 0.5
     ZOOM_MAX = 10.0
@@ -340,6 +341,7 @@ class ZoomableVideoView(QGraphicsView):
                         self.centerOn(self._video_item)
 
     def wheelEvent(self, event: QWheelEvent) -> None:
+        self.mouse_moved.emit()
         delta = event.angleDelta().y()
         if delta == 0:
             return
@@ -401,6 +403,7 @@ class ZoomableVideoView(QGraphicsView):
         return None
 
     def mousePressEvent(self, event: QMouseEvent) -> None:
+        self.mouse_moved.emit()
         if self.is_cropping:
             if event.button() == Qt.MouseButton.MiddleButton:
                 self._is_panning = True
@@ -420,6 +423,7 @@ class ZoomableVideoView(QGraphicsView):
             super().mousePressEvent(event)
 
     def mouseMoveEvent(self, event: QMouseEvent) -> None:
+        self.mouse_moved.emit()
         if self._is_panning and self._pan_start is not None:
             delta = event.position() - self._pan_start
             self._pan_start = event.position()
@@ -487,11 +491,20 @@ class VideoPlayer(QWidget):
 
     def __init__(self, parent=None) -> None:
         super().__init__(parent)
+        self.setMouseTracking(True)
 
         self._current_path: Optional[Path] = None
         self._is_previewing_trim: bool = False
         self._preview_end_ms: int = 0
         self._has_video_frame: bool = False
+        self._menu_open: bool = False
+        self._controls_hidden: bool = False
+        self._last_global_mouse_pos: Optional[QPoint] = None
+
+        self._auto_hide_timer = QTimer(self)
+        self._auto_hide_timer.setSingleShot(True)
+        self._auto_hide_timer.setInterval(2500)
+        self._auto_hide_timer.timeout.connect(self._on_auto_hide_timeout)
 
         # Smart enhance state
         self._smart_enhance_active: bool = False
@@ -552,19 +565,21 @@ class VideoPlayer(QWidget):
         # Video display area (zoomable)
         layout.addWidget(self._video_view, stretch=1)
 
-        # ── Controls bar ──
-        controls = QWidget()
-        controls.setObjectName("videoControls")
-        controls.setStyleSheet(
+        # ── Controls bar (floating bottom overlay) ──
+        self._controls = QWidget(self)
+        self._controls.setObjectName("videoControls")
+        self._controls.setMouseTracking(True)
+        self._controls.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
+        self._controls.setStyleSheet(
             """
             QWidget#videoControls {
-                background-color: #181825;
+                background-color: rgba(24, 24, 37, 232);
                 border-top: 1px solid #313244;
                 padding: 6px;
             }
             """
         )
-        controls_layout = QVBoxLayout(controls)
+        controls_layout = QVBoxLayout(self._controls)
         controls_layout.setContentsMargins(12, 6, 12, 8)
         controls_layout.setSpacing(6)
 
@@ -677,7 +692,9 @@ class VideoPlayer(QWidget):
         bottom_row.addWidget(self._volume_slider)
 
         controls_layout.addLayout(bottom_row)
-        layout.addWidget(controls)
+        self._controls.installEventFilter(self)
+        self._video_view.viewport().installEventFilter(self)
+        self._controls.raise_()
 
     def _connect_signals(self) -> None:
         self._player.positionChanged.connect(self._on_position_changed)
@@ -704,6 +721,7 @@ class VideoPlayer(QWidget):
         # Video view signals
         self._video_view.crop_rect_changed.connect(self._on_video_crop_rect_changed)
         self._video_view.native_size_ready.connect(self._on_native_size_ready)
+        self._video_view.mouse_moved.connect(self._on_mouse_moved)
 
         # Stream recorder signals
         self._stream_recorder.recording_started.connect(self._on_recording_started)
@@ -861,7 +879,14 @@ class VideoPlayer(QWidget):
                 act.setChecked(True)
             act.triggered.connect(lambda checked=False, rate=s: self.set_playback_rate(rate))
 
-        menu.exec(self._video_view.mapToGlobal(pos))
+        self._menu_open = True
+        self._auto_hide_timer.stop()
+        try:
+            menu.exec(self._video_view.mapToGlobal(pos))
+        finally:
+            self._menu_open = False
+            if self._can_auto_hide():
+                self._auto_hide_timer.start()
 
     # ── Playback Speed API ──────────────────────────────────────────────
 
@@ -953,7 +978,95 @@ class VideoPlayer(QWidget):
 
         btn_pos = self._speed_btn.mapToGlobal(QPoint(0, 0))
         menu_height = menu.sizeHint().height()
-        menu.exec(QPoint(btn_pos.x(), btn_pos.y() - menu_height - 4))
+        self._menu_open = True
+        self._auto_hide_timer.stop()
+        try:
+            menu.exec(QPoint(btn_pos.x(), btn_pos.y() - menu_height - 4))
+        finally:
+            self._menu_open = False
+            if self._can_auto_hide():
+                self._auto_hide_timer.start()
+
+    def _position_controls(self) -> None:
+        """Position the floating controls bar along the bottom edge of the player."""
+        if not hasattr(self, "_controls") or self.width() <= 0:
+            return
+        w = self.width()
+        self._controls.setFixedWidth(w)
+        self._controls.adjustSize()
+        h = self._controls.sizeHint().height()
+        self._controls.setGeometry(0, max(0, self.height() - h), w, h)
+        if self._controls.isVisible():
+            self._controls.raise_()
+
+    def resizeEvent(self, event) -> None:
+        super().resizeEvent(event)
+        self._position_controls()
+
+    def showEvent(self, event) -> None:
+        super().showEvent(event)
+        self._position_controls()
+
+    def _can_auto_hide(self) -> bool:
+        """Return True when playback controls are allowed to auto-hide."""
+        return (
+            self._player.playbackState() == QMediaPlayer.PlaybackState.PlayingState
+            and not self._is_seeking
+            and not self.is_trimming
+            and not self._menu_open
+        )
+
+    def _is_cursor_over_controls(self) -> bool:
+        """Return True if the mouse cursor is currently inside the visible controls bar."""
+        if not self._controls.isVisible():
+            return False
+        return self._controls.rect().contains(self._controls.mapFromGlobal(QCursor.pos()))
+
+    def _show_controls(self, restart_timer: bool = True) -> None:
+        """Show the floating controls bar and restore the cursor."""
+        if self._controls_hidden:
+            self._controls_hidden = False
+            if not self._video_view._is_panning and not self._video_view.is_cropping:
+                self._video_view.viewport().setCursor(Qt.CursorShape.ArrowCursor)
+        self._position_controls()
+        if not self._controls.isVisible():
+            self._controls.show()
+        self._controls.raise_()
+        if restart_timer and self._can_auto_hide():
+            self._auto_hide_timer.start()
+        else:
+            self._auto_hide_timer.stop()
+
+    def _on_auto_hide_timeout(self) -> None:
+        """Hide controls and cursor after mouse inactivity during playback."""
+        if not self._can_auto_hide():
+            return
+        if self._is_cursor_over_controls():
+            self._auto_hide_timer.start()
+            return
+        self._last_global_mouse_pos = QCursor.pos()
+        self._controls_hidden = True
+        self._controls.hide()
+        if not self._video_view._is_panning and not self._video_view.is_cropping:
+            self._video_view.viewport().setCursor(Qt.CursorShape.BlankCursor)
+
+    def _on_mouse_moved(self) -> None:
+        """Reveal controls when the user moves the mouse."""
+        cur_pos = QCursor.pos()
+        if self._controls_hidden and self._last_global_mouse_pos is not None:
+            if (cur_pos - self._last_global_mouse_pos).manhattanLength() < 3:
+                return
+        self._last_global_mouse_pos = cur_pos
+        self._show_controls(restart_timer=True)
+
+    def mouseMoveEvent(self, event: QMouseEvent) -> None:
+        self._on_mouse_moved()
+        super().mouseMoveEvent(event)
+
+    def leaveEvent(self, event: QEvent) -> None:
+        if self._can_auto_hide():
+            self._auto_hide_timer.start()
+        super().leaveEvent(event)
 
     def eventFilter(self, watched, event) -> bool:
         if watched == self._speed_btn and event.type() == QEvent.Type.Wheel:
@@ -964,6 +1077,17 @@ class VideoPlayer(QWidget):
             elif delta < 0:
                 self.decrease_speed()
                 return True
+        elif watched in (self._controls, self._video_view.viewport()):
+            etype = event.type()
+            if etype == QEvent.Type.MouseMove:
+                self._on_mouse_moved()
+            elif etype in (QEvent.Type.MouseButtonPress, QEvent.Type.Wheel):
+                self._show_controls(restart_timer=True)
+            elif etype == QEvent.Type.Enter and watched == self._controls:
+                self._show_controls(restart_timer=False)
+            elif etype == QEvent.Type.Leave and watched == self._controls:
+                if self._can_auto_hide():
+                    self._auto_hide_timer.start()
         return super().eventFilter(watched, event)
 
     # ── Video Trim API ──────────────────────────────────────────────────
@@ -987,10 +1111,15 @@ class VideoPlayer(QWidget):
             self._progress_slider.set_trim_range(
                 True, self._trim_panel.start_ms, self._trim_panel.end_ms
             )
+            self._position_controls()
+            self._show_controls(restart_timer=False)
         else:
             self._is_previewing_trim = False
             self._progress_slider.set_trim_range(False, 0, 0)
             self._video_view.cancel_crop()
+            self._position_controls()
+            if self._can_auto_hide():
+                self._auto_hide_timer.start()
 
     def set_trim_in_point(self) -> None:
         """Set In-point (start) to current playback position."""
@@ -1074,6 +1203,7 @@ class VideoPlayer(QWidget):
 
         if self._smart_enhance_active:
             self._video_view.set_smart_enhance(True)
+        self._show_controls(restart_timer=False)
 
         self._player.stop()
         self._player.setAudioOutput(self._audio_output)
@@ -1085,6 +1215,7 @@ class VideoPlayer(QWidget):
         self.set_playback_rate(1.0)
         self._video_view.fit_video()
         self._trim_panel.reset_for_video(0)
+        self._show_controls(restart_timer=False)
         self._player.play()
 
     def load_media(self, path: str | Path) -> None:
@@ -1134,6 +1265,7 @@ class VideoPlayer(QWidget):
         self.apply_adjustments(0, 0, 1.0)
         if self._smart_enhance_active:
             self._video_view.set_smart_enhance(True)
+        self._show_controls(restart_timer=False)
 
     def toggle_stream_recording(self) -> None:
         """Toggle recording of the currently playing live network stream."""
@@ -1254,9 +1386,12 @@ class VideoPlayer(QWidget):
             if not self._video_view.is_zoomed:
                 self._video_view.fit_video()
             self.playback_started.emit()
+            if self._can_auto_hide():
+                self._auto_hide_timer.start()
         else:
             self._play_btn.setText("▶")
             self._play_btn.setToolTip("Oynat (Space)")
+            self._show_controls(restart_timer=False)
             if state == QMediaPlayer.PlaybackState.StoppedState:
                 self.playback_stopped.emit()
 
@@ -1273,10 +1408,13 @@ class VideoPlayer(QWidget):
 
     def _on_seek_start(self) -> None:
         self._is_seeking = True
+        self._auto_hide_timer.stop()
 
     def _on_seek_end(self) -> None:
         self._is_seeking = False
         self._player.setPosition(self._progress_slider.value())
+        if self._can_auto_hide():
+            self._auto_hide_timer.start()
 
     def _on_seek_moved(self, position: int) -> None:
         duration = self._player.duration()
